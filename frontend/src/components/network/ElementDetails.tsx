@@ -53,12 +53,13 @@ export function ElementDetails({
 }) {
   const link = (id: number) => <NodeLink topology={topology} id={id} onSelect={onSelect} />
   /** A value, marked when edited; `fmt` formats the file value for the tooltip. */
-  const val = (field: string, text: string, fmt: (file: number | undefined) => string) => {
+  const val = (field: string, text: string, fmt: (file: number) => string) => {
     if (!edits?.isEdited(selected.kind, selected.id, field)) return text
+    const file = edits.fileValue(selected.kind, selected.id, field)
     return (
       <span className="inline-flex items-center gap-1.5">
         <span className="font-medium text-warn">{text}</span>
-        <EditedMarker title={`File value: ${fmt(edits.fileValue(selected.kind, selected.id, field))}`} />
+        <EditedMarker title={`File value: ${file == null ? 'not set' : fmt(file)}`} />
       </span>
     )
   }

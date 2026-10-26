@@ -4,6 +4,7 @@ import { useSnapshot } from '../../api/hooks'
 import { useChartTheme } from '../../components/charts/theme'
 import type { DiagramOverlay, ElementRef } from '../../components/network'
 import { ElementDetails, GradientLegend, loadingColor, NetworkDiagram, voltageDivergingColor } from '../../components/network'
+import { changedElements } from '../../components/network/overrides'
 import { EmptyState, ErrorState, IconButton, LoadingState, Segmented, Spinner } from '../../components/ui'
 import { fmtDateTime, fmtPct, fmtPu, toDate } from '../../lib/format'
 import { toNaive } from '../../lib/time'
@@ -56,9 +57,17 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
     }
   }, [snap.data, theme])
 
+  // the run's own network: branches switched off by the frozen case's overrides are drawn dashed
+  const overrides = ctx.case?.network_overrides
+  const changed = useMemo(() => changedElements(overrides ?? []), [overrides])
+  const outOfService = useMemo(
+    () => (ctx.topology ? new Set(ctx.topology.branches.filter((b) => !b.in_service).map((b) => b.id)) : undefined),
+    [ctx.topology],
+  )
+
   if (ctx.topologyLoading) return <LoadingState label="Loading network…" />
   if (ctx.topologyError) return <ErrorState error={ctx.topologyError} title="Could not load the network of this run" />
-  if (!ctx.topology) return <EmptyState title="Network not available" description="The case or network of this run could not be found." />
+  if (!ctx.topology || !ctx.fileTopology) return <EmptyState title="Network not available" description="The case or network of this run could not be found." />
 
   const sel = selected
   const selValue =
@@ -102,7 +111,9 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
       {snap.error && <ErrorState error={snap.error} title="Could not load snapshot" />}
       <div className="grid gap-3 lg:grid-cols-[1fr_260px]">
         <NetworkDiagram
-          topology={ctx.topology}
+          topology={ctx.fileTopology}
+          changed={changed}
+          outOfService={outOfService}
           overlay={overlay}
           overlayKey={t}
           selected={selected}
@@ -128,6 +139,7 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
           {sel ? (
             <ElementDetails
               topology={ctx.topology}
+              edits={ctx.effective}
               selected={sel}
               onSelect={setSelected}
               onClose={() => setSelected(null)}

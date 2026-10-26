@@ -966,7 +966,7 @@ export interface components {
              * @description File values of the editable fields (SI units)
              */
             params?: {
-                [key: string]: number;
+                [key: string]: number | null;
             };
         };
         /** TopologyBranch */
@@ -996,7 +996,7 @@ export interface components {
              * @description File values of the editable fields (SI units)
              */
             params?: {
-                [key: string]: number;
+                [key: string]: number | null;
             };
         };
         /** TopologyNode */
@@ -1023,7 +1023,7 @@ export interface components {
              * @description File values of the editable fields (SI units)
              */
             params?: {
-                [key: string]: number;
+                [key: string]: number | null;
             };
         };
         /** ValidationError */

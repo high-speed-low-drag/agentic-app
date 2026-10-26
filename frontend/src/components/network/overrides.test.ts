@@ -144,3 +144,34 @@ describe('effectiveTopology', () => {
     expect(e.isEdited('appliance', 20, 'p_specified')).toBe(false)
   })
 })
+
+describe('file values that are not set (null)', () => {
+  const SN: EditableField = { field: 'sn', label: 'Rated power', unit: 'MVA', scale: 1e-6, kind: 'float', min: 0, max: null }
+  const topo: NetworkTopology = {
+    source: 'sample',
+    key: 'ieee14',
+    name: 'IEEE 14',
+    nodes: [
+      { id: 1, name: 'N1', u_rated: 100e3 },
+      { id: 2, name: 'N2', u_rated: 100e3 },
+    ],
+    branches: [{ id: 101, type: 'generic_branch', name: 'B1', from_node: 1, to_node: 2, in_service: true, params: { sn: null, r1: 1.9, from_status: 1, to_status: 1 } }],
+    appliances: [],
+    sources: [],
+    counts: {},
+  }
+
+  it('keeps an override whose file value is null', () => {
+    const ov = o('generic_branch', 101, 'sn', 100e6)
+    expect(setOverride([], ov, null)).toEqual([ov])
+    expect(formatValue(null, SN)).toBe('—')
+  })
+
+  it('reports null as the file value of an edited field', () => {
+    const e = effectiveTopology(topo, [o('generic_branch', 101, 'sn', 100e6)])
+    expect(e.topology.branches[0].params.sn).toBe(100e6)
+    expect(e.isEdited('branch', 101, 'sn')).toBe(true)
+    expect(e.fileValue('branch', 101, 'sn')).toBeNull()
+    expect(e.fileValue('branch', 101, 'r1')).toBeUndefined()
+  })
+})

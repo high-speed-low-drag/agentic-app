@@ -43,8 +43,10 @@ export function NumberCell({
   onRevert,
 }: {
   field: EditableField
-  value: number | undefined
-  file: number | undefined
+  /** current SI value; null/undefined = not set (empty input with a "—" placeholder) */
+  value: number | null | undefined
+  /** file SI value; null/undefined = not set in the file */
+  file: number | null | undefined
   changed: boolean
   /** accessible name, e.g. "P of Load1" */
   label: string
@@ -53,8 +55,8 @@ export function NumberCell({
 }) {
   const [text, setText] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const shown = text ?? (value === undefined ? '' : String(toDisplay(value, field)))
-  const fileText = formatValue(file, field)
+  const shown = text ?? (value == null ? '' : String(toDisplay(value, field)))
+  const fileText = file == null ? 'not set' : formatValue(file, field)
 
   const commit = (keepOnError: boolean): boolean => {
     if (text === null) return true
@@ -70,7 +72,7 @@ export function NumberCell({
     }
     setText(null)
     setError(null)
-    if (value === undefined || r.value !== value) onCommit(r.value)
+    if (value == null || r.value !== value) onCommit(r.value)
     return true
   }
 
@@ -84,6 +86,7 @@ export function NumberCell({
           data-changed={changed || undefined}
           inputMode={field.kind === 'int' ? 'numeric' : 'decimal'}
           value={shown}
+          placeholder="—"
           onClick={(e) => e.stopPropagation()}
           onFocus={(e) => e.currentTarget.select()}
           onChange={(e) => {

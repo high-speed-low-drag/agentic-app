@@ -88,16 +88,25 @@ def _float_or_none(v: Any) -> float | None:
     return None if np.isnan(f) else f
 
 
-def _params(comp: str, row: np.void) -> dict[str, float]:
-    """File values of the component's editable fields (NaN/missing values are left out)."""
+def _missing(v: Any) -> bool:
+    """PGM's "not set" marker: NaN for floats, the dtype minimum for integers."""
+    a = np.asarray(v)
+    if np.issubdtype(a.dtype, np.floating):
+        return bool(np.isnan(a).any())
+    if np.issubdtype(a.dtype, np.integer):
+        return bool((a == np.iinfo(a.dtype).min).any())
+    return False
+
+
+def _params(comp: str, row: np.void) -> dict[str, float | None]:
+    """File values of the component's editable fields; values not set in the file are None."""
     from gridsim.networks.editable import editable_fields
 
-    out: dict[str, float] = {}
+    out: dict[str, float | None] = {}
     for f in editable_fields(comp):
         if f.field in row.dtype.names:
-            v = float(row[f.field])
-            if not np.isnan(v):
-                out[f.field] = v
+            v = row[f.field]
+            out[f.field] = None if _missing(v) else float(v)
     return out
 
 

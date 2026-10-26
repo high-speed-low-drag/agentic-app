@@ -66,7 +66,8 @@ class EditableField(BaseModel):
     max: float | None = Field(None, description="Maximum SI value (inclusive)")
 
 
-ParamValues = dict[str, float]
+# None = the network file has no value for that field (e.g. a generic_branch without `sn`).
+ParamValues = dict[str, float | None]
 
 
 class TopologyNode(BaseModel):

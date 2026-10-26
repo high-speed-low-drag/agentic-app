@@ -43,9 +43,9 @@ export function findOverride(list: NetworkOverride[], component: string, id: num
  * Set one field. If `value` equals the file value the override is removed instead.
  * Keeps the list order stable (replaces in place, appends new ones).
  */
-export function setOverride(list: NetworkOverride[], o: NetworkOverride, fileValue: number | undefined): NetworkOverride[] {
+export function setOverride(list: NetworkOverride[], o: NetworkOverride, fileValue: number | null | undefined): NetworkOverride[] {
   const rest = list.filter((x) => !(x.component === o.component && x.id === o.id && x.field === o.field))
-  if (fileValue !== undefined && sameValue(o.value, fileValue)) return rest
+  if (fileValue != null && sameValue(o.value, fileValue)) return rest
   const i = list.findIndex((x) => x.component === o.component && x.id === o.id && x.field === o.field)
   if (i < 0) return [...list, o]
   const next = [...list]
@@ -119,8 +119,8 @@ export function tabComponents(topo: NetworkTopology, kind: ElementKind): string[
 }
 
 /** Format an SI value for display ("1.5 MW", "in service"). */
-export function formatValue(si: number | undefined, f: Pick<EditableField, 'scale' | 'unit' | 'kind'>): string {
-  if (si === undefined || !Number.isFinite(si)) return '—'
+export function formatValue(si: number | null | undefined, f: Pick<EditableField, 'scale' | 'unit' | 'kind'>): string {
+  if (si == null || !Number.isFinite(si)) return '—'
   if (f.kind === 'bool') return si ? 'in service' : 'out of service'
   const d = toDisplay(si, f)
   const s = f.kind === 'int' ? String(Math.round(d)) : String(Number(d.toPrecision(6)))
@@ -152,8 +152,8 @@ export interface EffectiveTopology {
   topology: NetworkTopology
   /** Is this element's field edited? Status fields and `in_service` are the same key. */
   isEdited(kind: ElementKind, id: number, field: string): boolean
-  /** File value (SI; `in_service` as 1/0) of an edited field, `undefined` when not edited. */
-  fileValue(kind: ElementKind, id: number, field: string): number | undefined
+  /** File value (SI; `in_service` as 1/0) of an edited field: `null` when the file does not set it, `undefined` when not edited. */
+  fileValue(kind: ElementKind, id: number, field: string): number | null | undefined
 }
 
 /**
@@ -169,8 +169,8 @@ export function effectiveTopology(topo: NetworkTopology, overrides: NetworkOverr
     if (list) list.push(o)
     else byElement.set(k, [o])
   }
-  /** `kind:id:field` -> file value (undefined when the file has none) */
-  const edited = new Map<string, number | undefined>()
+  /** `kind:id:field` -> file value (null when the file has none) */
+  const edited = new Map<string, number | null>()
 
   /** Overridden params of one element (null when nothing effectively changes) + the edited fields. */
   const patch = (component: string, id: number, params: ParamValues) => {
@@ -180,7 +180,7 @@ export function effectiveTopology(topo: NetworkTopology, overrides: NetworkOverr
     const fields = new Set<string>()
     for (const o of list) {
       const file = params[o.field]
-      if (file !== undefined && sameValue(o.value, file)) continue
+      if (file != null && sameValue(o.value, file)) continue
       next ??= { ...params }
       next[o.field] = o.value
       fields.add(o.field)
@@ -188,7 +188,7 @@ export function effectiveTopology(topo: NetworkTopology, overrides: NetworkOverr
     return next ? { params: next, fields } : null
   }
   const mark = (kind: ElementKind, id: number, field: string, file: number | null | undefined) => {
-    edited.set(`${kind}:${id}:${fieldKey(field)}`, file ?? undefined)
+    edited.set(`${kind}:${id}:${fieldKey(field)}`, file ?? null)
   }
 
   const appliances = topo.appliances.map((a) => {
@@ -227,7 +227,7 @@ export function effectiveTopology(topo: NetworkTopology, overrides: NetworkOverr
     if (!p) return s
     const out = { ...s, params: p.params }
     for (const f of p.fields) mark('source', s.id, f, s.params[f])
-    if (p.fields.has('u_ref')) out.u_ref = p.params.u_ref
+    if (p.fields.has('u_ref')) out.u_ref = p.params.u_ref ?? s.u_ref
     return out
   })
 

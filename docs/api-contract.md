@@ -30,7 +30,7 @@ override with `network_overrides` (components not listed have none).
 ```
 `kind` is `float | int | bool`; `display value = SI value * scale`; `min`/`max` (inclusive, SI) are optional.
 v0 fields: `sym_load`/`sym_gen` `p_specified, q_specified, status`; `line` `r1, x1, c1, i_n, from_status, to_status`;
-`transformer` `sn, tap_pos, from_status, to_status`; `link` `from_status, to_status`; `source` `u_ref`.
+`transformer` `sn, tap_pos, from_status, to_status`; `generic_branch` `sn, r1, x1, from_status, to_status`; `link` `from_status, to_status`; `source` `u_ref`.
 `transformer.tap_pos` is an integer within the element's `tap_min..tap_max`. The UI shows `from_status`/`to_status` as
 one "in service" toggle that sets both.
 
@@ -53,7 +53,8 @@ Branch `type` is one of `line | link | transformer | generic_branch | three_wind
 For `three_winding_transformer` the branch has `from_node`=node_1, `to_node`=node_2 and an extra `node_3`. Appliance `type` covers
 `sym_load | sym_gen | asym_load | asym_gen | shunt`. Only `sym_load` and `sym_gen` are profile targets in v0.
 Branches, appliances and sources carry `params`: the network file values (SI units) of that component's editable fields
-(empty when it has none; NaN values are left out).
+(empty when it has none). A field the file does not set (PGM NaN, e.g. `sn` of IEEE 14's generic branches) is `null`;
+a case may still override it.
 
 ## Profile generators
 `GET /api/profile-generators` → `ProfileGeneratorInfo[]`

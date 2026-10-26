@@ -46,8 +46,8 @@ export type ApplianceType = 'sym_load' | 'sym_gen' | 'asym_load' | 'asym_gen' | 
 export type ProfileTargetComponent = 'sym_load' | 'sym_gen'
 export const PROFILE_TARGET_COMPONENTS: ProfileTargetComponent[] = ['sym_load', 'sym_gen']
 
-/** File values (SI units) of a component's editable fields, keyed by field name. */
-export type ParamValues = Record<string, number>
+/** File values (SI units) of a component's editable fields, keyed by field name; `null` = not set in the file. */
+export type ParamValues = Record<string, number | null>
 
 export type EditableFieldKind = 'float' | 'int' | 'bool'
 

@@ -2,12 +2,14 @@
 
 import json
 
+import numpy as np
 import pyarrow.parquet as pq
 import pytest
 from fastapi.testclient import TestClient
+from power_grid_model import ComponentType, PowerGridModel
 
 from gridsim.api import create_app
-from gridsim.models import NetworkOverride
+from gridsim.models import NetworkOverride, NetworkRef
 from gridsim.networks import load_network
 from gridsim.networks.editable import EDITABLE_FIELDS
 from gridsim.networks.overrides import apply_overrides
@@ -137,3 +139,75 @@ def test_api_editable_fields_topology_params_and_frozen_case(workspace) -> None:
         r = client.post(f"/api/cases/{bad['id']}/runs")
         assert r.status_code == 422
         assert "element not in network" in json.dumps(r.json())
+
+
+# --- generic_branch (IEEE 14: no `sn` in the file) ---------------------------------------------
+
+GB = 101  # ieee14 generic_branch bus 1 -> bus 2
+GB_OFF = 102
+
+
+def _ieee14_case(overrides: list[NetworkOverride]):
+    return make_case(
+        network=NetworkRef(source="sample", key="ieee14"),
+        profile_assignments=[],
+        network_overrides=overrides,
+    )
+
+
+def _pf(overrides: list[NetworkOverride]):
+    net = apply_overrides(load_network("sample", "ieee14"), overrides)
+    out = PowerGridModel(net.input_data).calculate_power_flow()
+    return out[ComponentType.generic_branch]
+
+
+def test_generic_branch_sn_override_gives_loading() -> None:
+    o = NetworkOverride(component="generic_branch", id=GB, field="sn", value=100e6)
+    res = validate_case(_ieee14_case([o]))
+    assert res.ok, res.issues  # file value is NaN: overriding it is still allowed
+    gb = _pf([o])
+    k = int(np.flatnonzero(gb["id"] == GB)[0])
+    expected = max(gb["s_from"][k], gb["s_to"][k]) / 100e6
+    assert expected > 0.01
+    assert gb["loading"][k] == pytest.approx(expected, rel=1e-6)
+    others = gb["loading"][gb["id"] != GB]
+    assert np.all(others == 0)  # no sn -> PGM reports 0
+
+
+def test_generic_branch_out_of_service_has_no_flow() -> None:
+    base = _pf([])
+    k = int(np.flatnonzero(base["id"] == GB_OFF)[0])
+    assert abs(base["p_from"][k]) > 1e6
+    ovs = [
+        NetworkOverride(component="generic_branch", id=GB_OFF, field=f, value=0)
+        for f in ("from_status", "to_status")
+    ]
+    assert validate_case(_ieee14_case(ovs)).ok
+    off = _pf(ovs)
+    assert abs(off["p_from"][k]) < 1.0 and abs(off["p_to"][k]) < 1.0
+    assert not next(
+        b
+        for b in apply_overrides(load_network("sample", "ieee14"), ovs).topology.branches
+        if b.id == GB_OFF
+    ).in_service
+
+
+def test_api_ieee14_generic_branch_params_are_null_not_nan() -> None:
+    with TestClient(create_app()) as client:
+        fields = client.get("/api/networks/editable-fields").json()
+        assert [f["field"] for f in fields["generic_branch"]] == [
+            "sn",
+            "r1",
+            "x1",
+            "from_status",
+            "to_status",
+        ]
+        sn = fields["generic_branch"][0]
+        assert (sn["label"], sn["unit"], sn["scale"], sn["min"]) == ("Rated power", "MVA", 1e-6, 0)
+        r = client.get("/api/networks/sample/ieee14")
+        assert r.status_code == 200
+        assert "NaN" not in r.text
+        gb = next(b for b in r.json()["branches"] if b["id"] == GB)
+        assert gb["params"]["sn"] is None
+        assert '"sn":null' in r.text.replace(" ", "")
+        assert gb["params"]["r1"] == pytest.approx(1.938)

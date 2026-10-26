@@ -47,6 +47,12 @@ EDITABLE_FIELDS: dict[str, list[EditableField]] = {
         EditableField(field="tap_pos", label="Tap position", kind="int"),
         *_BRANCH_STATUS,
     ],
+    "generic_branch": [
+        _f("sn", "Rated power", "MVA", 1e-6, min=0),
+        _f("r1", "R1", "Ω", 1.0),
+        _f("x1", "X1", "Ω", 1.0),
+        *_BRANCH_STATUS,
+    ],
     "link": list(_BRANCH_STATUS),
     "source": [_f("u_ref", "U ref", "pu", 1.0, min=0)],
 }

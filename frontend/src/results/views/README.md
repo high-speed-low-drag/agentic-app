@@ -51,7 +51,7 @@ mounted for **succeeded** runs.
 ## Building blocks
 
 - `../TimeseriesChart.tsx`: multi-line time chart with dataZoom and limit lines.
-- `../useRunContext.ts`: run → case → `limits` (defaults 0.95/1.05/1.0) and the network `topology`.
+- `../useRunContext.ts`: run → case → `limits` (defaults 0.95/1.05/1.0) and the network `topology` with the frozen case's overrides applied (`fileTopology` = unchanged file, `effective` = which values were edited).
 - `../timestamps.ts`: timestep index ↔ time helpers.
 - `../../components/charts/`: `EChart` wrapper + `useChartTheme()` / `baseOption()` etc. so
   charts follow the light/dark design tokens.
