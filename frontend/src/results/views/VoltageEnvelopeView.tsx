@@ -5,6 +5,7 @@ import { EChart } from '../../components/charts/EChart'
 import { baseOption, dataZoom, timeAxis, useChartTheme, valueAxis } from '../../components/charts/theme'
 import { ErrorState, LoadingState } from '../../components/ui'
 import { fmtDateTime, fmtPu } from '../../lib/format'
+import { axisRangeWithLimits, seriesExtent, voltageLimitLines } from '../limitLines'
 import { toMs } from '../timestamps'
 import type { ResultViewProps } from '../types'
 import { useRunContext } from '../useRunContext'
@@ -17,6 +18,10 @@ export function VoltageEnvelopeView({ runId }: ResultViewProps) {
   const theme = useChartTheme()
   const { limits } = useRunContext(runId)
   const q = useEnvelope(runId, 'node', 'u_pu')
+  const range = useMemo(() => {
+    const ext = seriesExtent(q.data ? [q.data.min, q.data.max] : [])
+    return axisRangeWithLimits(ext.min, ext.max, [limits.u_min_pu, limits.u_max_pu])
+  }, [q.data, limits])
 
   const option = useMemo<EChartsOption>(() => {
     const d = q.data
@@ -50,8 +55,7 @@ export function VoltageEnvelopeView({ runId }: ResultViewProps) {
       xAxis: timeAxis(theme),
       yAxis: valueAxis(theme, {
         name: 'u [pu]',
-        min: (v: { min: number }) => +Math.min(v.min, limits.u_min_pu - 0.005).toFixed(3),
-        max: (v: { max: number }) => +Math.max(v.max, limits.u_max_pu + 0.005).toFixed(3),
+        ...(range ? { min: range.min, max: range.max } : {}),
         axisLabel: { color: theme.muted, formatter: (v: number) => v.toFixed(3) } }),
       dataZoom: dataZoom(theme),
       series: [
@@ -94,17 +98,18 @@ export function VoltageEnvelopeView({ runId }: ResultViewProps) {
             silent: true,
             lineStyle: { color: theme.bad, type: 'dashed', width: 1 },
             label: { color: theme.bad, formatter: '{b}', position: 'end', fontSize: 10 },
-            data: [
-              { yAxis: limits.u_min_pu, name: `u_min ${limits.u_min_pu}` },
-              { yAxis: limits.u_max_pu, name: `u_max ${limits.u_max_pu}` },
-            ],
+            data: voltageLimitLines(limits).map((l) => ({ yAxis: l.value, name: l.label })),
           },
         },
       ],
     }
-  }, [q.data, theme, limits])
+  }, [q.data, theme, limits, range])
 
   if (q.isLoading) return <LoadingState label="Loading voltage envelope…" />
   if (q.error) return <ErrorState error={q.error} title="Could not load envelope" onRetry={() => void q.refetch()} />
-  return <EChart option={option} height={400} />
+  return (
+    <div data-testid="voltage-envelope-chart" data-y-min={range?.min} data-y-max={range?.max}>
+      <EChart option={option} height={400} />
+    </div>
+  )
 }

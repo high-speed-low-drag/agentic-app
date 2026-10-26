@@ -4,7 +4,7 @@ import type { ResultComponent, TimeseriesQuery } from '../../api/schema'
 import { RESULT_FIELDS } from '../../api/schema'
 import { ErrorState, Field, MultiSelect, Segmented, Select } from '../../components/ui'
 import { fieldLabel, fmtPct, fmtPu } from '../../lib/format'
-import type { LimitLine } from '../TimeseriesChart'
+import { type LimitLine, loadingLimitLines, voltageLimitLines } from '../limitLines'
 import { TimeseriesChart } from '../TimeseriesChart'
 import type { ResultViewProps } from '../types'
 import { worstIds } from '../worst'
@@ -47,12 +47,8 @@ export function ElementTimeseriesView({ runId, summary }: ResultViewProps) {
   const q = useTimeseries(runId, query)
 
   const limits = useMemo<LimitLine[]>(() => {
-    if (component === 'node' && field === 'u_pu')
-      return [
-        { value: ctx.limits.u_min_pu, label: 'u_min' },
-        { value: ctx.limits.u_max_pu, label: 'u_max' },
-      ]
-    if (component === 'branch' && field === 'loading') return [{ value: ctx.limits.loading_max, label: 'limit' }]
+    if (component === 'node' && field === 'u_pu') return voltageLimitLines(ctx.limits)
+    if (component === 'branch' && field === 'loading') return loadingLimitLines(ctx.limits)
     return []
   }, [component, field, ctx.limits])
 

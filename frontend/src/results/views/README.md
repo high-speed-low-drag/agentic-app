@@ -50,7 +50,8 @@ mounted for **succeeded** runs.
 
 ## Building blocks
 
-- `../TimeseriesChart.tsx`: multi-line time chart with dataZoom and limit lines.
+- `../TimeseriesChart.tsx`: multi-line time chart with dataZoom and limit lines (y-axis widened to keep limits visible).
+- `../limitLines.ts`: `voltageLimitLines` / `loadingLimitLines` (labelled "u_min 0.90", "limit 100%") and `axisRangeWithLimits` for any chart that draws limits.
 - `../useRunContext.ts`: run → case → `limits` (defaults 0.95/1.05/1.0) and the network `topology` with the frozen case's overrides applied (`fileTopology` = unchanged file, `effective` = which values were edited).
 - `../timestamps.ts`: timestep index ↔ time helpers.
 - `../../components/charts/`: `EChart` wrapper + `useChartTheme()` / `baseOption()` etc. so

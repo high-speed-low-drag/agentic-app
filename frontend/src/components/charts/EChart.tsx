@@ -3,6 +3,14 @@ import * as echarts from 'echarts'
 import { useEffect, useRef } from 'react'
 import { cn } from '../../lib/utils'
 
+declare global {
+  interface Window {
+    /** Dev-only handle for e2e tests: `__gridsimEcharts.getInstanceByDom(el)`. */
+    __gridsimEcharts?: typeof echarts
+  }
+}
+if (import.meta.env.DEV && typeof window !== 'undefined') window.__gridsimEcharts = echarts
+
 export type EChartEvents = Record<string, (params: unknown, chart: ECharts) => void>
 
 /** Thin React wrapper around an ECharts instance. */

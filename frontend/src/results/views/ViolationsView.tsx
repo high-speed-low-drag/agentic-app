@@ -5,6 +5,7 @@ import type { BranchExtremes, NodeExtremes, Violation } from '../../api/schema'
 import type { Column } from '../../components/ui'
 import { Badge, EmptyState, ErrorState, Modal, Table, Tabs } from '../../components/ui'
 import { fmtDateTime, fmtInt, fmtPct, fmtPu } from '../../lib/format'
+import { loadingLimitLines, voltageLimitLines } from '../limitLines'
 import { TimeseriesChart } from '../TimeseriesChart'
 import type { ResultViewProps } from '../types'
 import { useRunContext } from '../useRunContext'
@@ -148,16 +149,7 @@ function FocusModal({
     [focus],
   )
   const q = useTimeseries(runId, query)
-  const lines = useMemo(
-    () =>
-      focus?.component === 'node'
-        ? [
-            { value: limits.u_min_pu, label: 'u_min' },
-            { value: limits.u_max_pu, label: 'u_max' },
-          ]
-        : [{ value: limits.loading_max, label: 'limit' }],
-    [focus, limits],
-  )
+  const lines = useMemo(() => (focus?.component === 'node' ? voltageLimitLines(limits) : loadingLimitLines(limits)), [focus, limits])
   return (
     <Modal open={!!focus} onClose={onClose} size="xl" title={focus ? `${focus.name} · ${focus.component === 'node' ? 'voltage' : 'loading'}` : ''}>
       {q.error ? <ErrorState error={q.error} /> : <TimeseriesChart data={q.data} limits={lines} height={380} loading={q.isFetching} />}

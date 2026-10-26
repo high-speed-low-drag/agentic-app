@@ -4,16 +4,19 @@ import type { TimeseriesResponse } from '../api/schema'
 import { EChart } from '../components/charts/EChart'
 import { baseOption, dataZoom, timeAxis, useChartTheme, valueAxis } from '../components/charts/theme'
 import { fieldLabel, fmtUnit } from '../lib/format'
+import { axisRangeWithLimits, type LimitLine, seriesExtent } from './limitLines'
 import { toMs } from './timestamps'
 
-export interface LimitLine {
-  value: number
-  label: string
-}
+export type { LimitLine } from './limitLines'
 
 const NO_LIMITS: LimitLine[] = []
 
-/** Multi-line time series chart with dataZoom and optional horizontal limit lines. */
+/**
+ * Multi-line time series chart with dataZoom (x) and optional horizontal limit lines.
+ * With limits, the y-axis range is fixed to cover data and limits (ECharts would not widen
+ * an auto-fit axis for markLines); without, it auto-fits. The range is mirrored on the
+ * wrapper as data-y-min / data-y-max for tests.
+ */
 export function TimeseriesChart({
   data,
   limits = NO_LIMITS,
@@ -26,6 +29,11 @@ export function TimeseriesChart({
   loading?: boolean
 }) {
   const theme = useChartTheme()
+  const range = useMemo(() => {
+    if (!limits.length) return null
+    const ext = seriesExtent((data?.series ?? []).map((s) => s.values))
+    return axisRangeWithLimits(ext.min, ext.max, limits.map((l) => l.value))
+  }, [data, limits])
   const option = useMemo<EChartsOption>(() => {
     const ts = data ? toMs(data.timestamps) : []
     const unit = data?.unit ?? ''
@@ -41,6 +49,7 @@ export function TimeseriesChart({
       yAxis: valueAxis(theme, {
         name: data ? `${fieldLabel(data.field)}${unit && !pct ? ` [${unit}]` : ''}` : '',
         axisLabel: { color: theme.muted, formatter: (v: number) => (pct ? `${Math.round(v * 100)}%` : unit === 'pu' ? v.toFixed(3) : fmtUnit(v, unit)) },
+        ...(range ? { min: range.min, max: range.max } : {}),
       }),
       dataZoom: dataZoom(theme),
       series: (data?.series ?? []).map((s, i) => ({
@@ -64,6 +73,10 @@ export function TimeseriesChart({
           : {}),
       })),
     }
-  }, [data, theme, limits])
-  return <EChart option={option} height={height} loading={loading} />
+  }, [data, theme, limits, range])
+  return (
+    <div data-testid="timeseries-chart" data-y-min={range?.min} data-y-max={range?.max}>
+      <EChart option={option} height={height} loading={loading} />
+    </div>
+  )
 }
