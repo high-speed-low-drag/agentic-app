@@ -23,3 +23,12 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 - T4 started: T4a sub-agent (frozen-case endpoint, contract drift guard, Playwright e2e on ports 8100/5180); orchestrator does browser walkthrough on 8000/5173.
 - T4 browser walkthrough (orchestrator): cases → editor (network diagram, profile preview) → run (82 ms, 672 steps) → all result views OK; no backend errors. .claude/launch.json added for preview servers.
 - T3/T4 done: make check (48 backend + 12 frontend tests, lint, types, drift guards) and make e2e (3 Playwright tests, 7.6 s) verified by orchestrator. T5: milestone 1 committed.
+
+# Milestone 2: Iteration on user feedback
+
+| id | task | status | deps | owns | done check |
+|----|------|--------|------|------|------------|
+| T6 | In-cell editing of equipment parameters (per-case overrides, amber cells, revert) | in_progress | – | backend/, frontend/, docs/api-contract.md | `make check && make e2e` |
+
+## Log
+- 2026-10-26: profile scale factor shipped (d1d031c). T6 approved by user; sub-agent started.
