@@ -32,7 +32,9 @@ new session, so a fresh session knows where things stand without being told.
    directories, so a re-run or a parallel agent can't clobber another's work.
    Shared files (contracts, ledger, CLAUDE.md) are orchestrator-only.
 5. **Only the orchestrator commits**, after a task's done check passes, plus
-   WIP checkpoints before long waits. This means `git log` is the recovery point,
+   WIP checkpoints before long waits. While a sub-agent is running, stage explicit paths only
+   (never `git commit -a` or `git add -A`), so its in-progress edits are not swept into another commit.
+   This means `git log` is the recovery point,
    and two agents never race on the git index.
 6. **Bounded tasks.** Each task should fit comfortably in one agent run. Split
    anything bigger. Run at most 2 sub-agents in parallel to stay within usage limits.

@@ -158,7 +158,7 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
             <div className="flex flex-wrap items-center gap-4">
               <GradientLegend
                 label="u"
-                stops={[theme.divLow, theme.divMid, theme.divHigh]}
+                stops={[theme.voltUnder, theme.voltMid, theme.voltOver]}
                 ticks={['0.92', '1.00', '1.08']}
               />
               <GradientLegend

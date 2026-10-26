@@ -43,10 +43,10 @@
   --c-series-6: #008300;
   --c-series-7: #6250d6;
   --c-series-8: #e34948;
-  /* diverging (low = red, mid = gray, high = blue) */
-  --c-div-low: #d03b3b;
-  --c-div-mid: #e6e5e0;
-  --c-div-high: #2a78d6;
+  /* voltage diverging (under = blue, mid = neutral, over = red) */
+  --c-volt-under: #2a78d6;
+  --c-volt-mid: #e6e5e0;
+  --c-volt-over: #d03b3b;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -85,9 +85,9 @@
     --c-series-6: #008300;
     --c-series-7: #9085e9;
     --c-series-8: #e66767;
-    --c-div-low: #e66767;
-    --c-div-mid: #383835;
-    --c-div-high: #3987e5;
+    --c-volt-under: #3987e5;
+    --c-volt-mid: #383835;
+    --c-volt-over: #e66767;
   }
 }
 
@@ -126,9 +126,9 @@
   --c-series-6: #008300;
   --c-series-7: #9085e9;
   --c-series-8: #e66767;
-  --c-div-low: #e66767;
-  --c-div-mid: #383835;
-  --c-div-high: #3987e5;
+  --c-volt-under: #3987e5;
+  --c-volt-mid: #383835;
+  --c-volt-over: #e66767;
 }
 
 @theme inline {

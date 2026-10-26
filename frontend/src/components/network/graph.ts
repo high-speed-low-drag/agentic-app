@@ -130,11 +130,11 @@ export function buildElements(topo: NetworkTopology, opts: BuildOptions): Elemen
   return els
 }
 
-/** Diverging colour around 1.0 pu: below -> low colour, above -> high colour, mid = neutral. */
+/** Diverging colour around 1.0 pu: below -> under (blue), above -> over (red), 1.0 = neutral. */
 export function voltageDivergingColor(u: number | null | undefined, theme: ChartTheme, span = 0.08): string {
   if (u === null || u === undefined || !Number.isFinite(u)) return theme.axis
   const f = Math.max(-1, Math.min(1, (u - 1) / span))
-  return f < 0 ? mix(theme.divMid, theme.divLow, -f) : mix(theme.divMid, theme.divHigh, f)
+  return f < 0 ? mix(theme.voltMid, theme.voltUnder, -f) : mix(theme.voltMid, theme.voltOver, f)
 }
 
 /** Sequential loading colour: 0 -> neutral, 1 -> warn-ish, >= 1.2 -> bad. */

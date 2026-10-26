@@ -16,9 +16,10 @@ export interface ChartTheme {
   warn: string
   bad: string
   series: string[]
-  divLow: string
-  divMid: string
-  divHigh: string
+  /** Voltage diverging scale: under 1.0 pu (blue), neutral at 1.0 pu, over 1.0 pu (red). */
+  voltUnder: string
+  voltMid: string
+  voltOver: string
 }
 
 const FALLBACK: ChartTheme = {
@@ -36,9 +37,9 @@ const FALLBACK: ChartTheme = {
   warn: '#a86a00',
   bad: '#c43030',
   series: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'],
-  divLow: '#d03b3b',
-  divMid: '#e6e5e0',
-  divHigh: '#2a78d6',
+  voltUnder: '#2a78d6',
+  voltMid: '#e6e5e0',
+  voltOver: '#d03b3b',
 }
 
 function read(): ChartTheme {
@@ -60,9 +61,9 @@ function read(): ChartTheme {
     warn: v('--c-warn', FALLBACK.warn),
     bad: v('--c-bad', FALLBACK.bad),
     series: FALLBACK.series.map((fb, i) => v(`--c-series-${i + 1}`, fb)),
-    divLow: v('--c-div-low', FALLBACK.divLow),
-    divMid: v('--c-div-mid', FALLBACK.divMid),
-    divHigh: v('--c-div-high', FALLBACK.divHigh),
+    voltUnder: v('--c-volt-under', FALLBACK.voltUnder),
+    voltMid: v('--c-volt-mid', FALLBACK.voltMid),
+    voltOver: v('--c-volt-over', FALLBACK.voltOver),
   }
 }
 
