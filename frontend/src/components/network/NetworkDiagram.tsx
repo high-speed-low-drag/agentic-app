@@ -75,6 +75,47 @@ export interface NetworkDiagramProps {
   ref?: Ref<NetworkDiagramHandle>
 }
 
+/**
+ * Bus-node (`kind = "node"`) geometry, in model px (= rendered px at zoom 1). Every bus-node rule
+ * in the stylesheet uses these, so the dot, its rings and its label stay in proportion.
+ */
+const NODE_SIZE = 9
+/** Edited node: slightly larger, so the amber ring reads without the node jumping back to full size. */
+const NODE_CHANGED_SIZE = 11
+/** Thin ring (surface colour; foreground on result colours) that keeps a small dot readable. */
+const NODE_BORDER = 1
+const NODE_CHANGED_BORDER = 2
+const NODE_SELECTED_BORDER = 2
+/** Selection halo padding around a bus node (edges keep their own). */
+const NODE_SELECTED_OVERLAY = 3
+/** "Not energised" hollow ring. */
+const NODE_HOLLOW_BORDER = 1.5
+/** Gap between the dot and its label. */
+const NODE_LABEL_MARGIN = 1.5
+/**
+ * Rendered radius (screen px) within which a click selects the nearest bus node, at any zoom.
+ * Cytoscape's own hit area is the node's outer size plus 2 px a side (14 px at zoom 1); this
+ * keeps a ~14 px target when zoomed out, or when a click lands on an edge right beside a node.
+ */
+const NODE_HIT_RADIUS = 7
+
+/** The bus node within `NODE_HIT_RADIUS` rendered px of a rendered point, nearest first. */
+function busNodeNear(cy: Core, p: { x: number; y: number } | undefined): NodeSingular | null {
+  if (!p) return null // a programmatic tap has no position
+  let best: NodeSingular | null = null
+  let bestSq = NODE_HIT_RADIUS * NODE_HIT_RADIUS
+  cy.nodes('[kind = "node"]').forEach((n) => {
+    if (!n.visible()) return
+    const q = n.renderedPosition()
+    const d = (q.x - p.x) ** 2 + (q.y - p.y) ** 2
+    if (d <= bestSq) {
+      bestSq = d
+      best = n
+    }
+  })
+  return best
+}
+
 /** Model-space size (px at zoom 1) of each symbol kind. */
 const SYMBOL_SIZE: Record<string, number> = { xfmr: 28, xfmr3: 28, grid: 24, gen: 18, shunt: 18 }
 function symbolPalette(t: ChartTheme, stroke = t.fg2): SymbolPalette {
@@ -106,21 +147,26 @@ function paintSymbol(n: NodeSingular, t: ChartTheme, levels: number[]) {
   if (n.data('img') !== img) n.data({ img, variant: off ? 'off' : 'on' })
 }
 
-function stylesheet(t: ChartTheme): StylesheetJson {
+/**
+ * `resultNodes`: bus nodes carry a result colour (overlay), e.g. the voltage scale on the results
+ * snapshot. Its mid-scale colours are dim in dark mode, so the ring uses a foreground token there
+ * instead of the surface colour, keeping a small dot readable in both themes.
+ */
+function stylesheet(t: ChartTheme, resultNodes = false): StylesheetJson {
   return [
     {
       selector: 'node',
       style: {
-        width: 14,
-        height: 14,
+        width: NODE_SIZE,
+        height: NODE_SIZE,
         'background-color': 'data(color)',
-        'border-width': 1.5,
-        'border-color': t.surface,
+        'border-width': NODE_BORDER,
+        'border-color': resultNodes ? t.fg2 : t.surface,
         label: 'data(label)',
         'font-size': 9,
         color: t.fg2,
         'text-valign': 'bottom',
-        'text-margin-y': 3,
+        'text-margin-y': NODE_LABEL_MARGIN,
         'min-zoomed-font-size': 7,
         'text-background-color': t.surface,
         'text-background-opacity': 0.7,
@@ -176,7 +222,7 @@ function stylesheet(t: ChartTheme): StylesheetJson {
     },
     {
       selector: 'node.changed',
-      style: { 'border-color': t.warn, 'border-width': 3, 'border-opacity': 1, width: 16, height: 16 },
+      style: { 'border-color': t.warn, 'border-width': NODE_CHANGED_BORDER, 'border-opacity': 1, width: NODE_CHANGED_SIZE, height: NODE_CHANGED_SIZE },
     },
     { selector: 'node.appliance.changed', style: { width: 10, height: 10, 'border-width': 2.5 } },
     { selector: 'node.sym.changed', style: { width: 'data(sz)', height: 'data(sz)', 'border-width': 2, 'border-color': t.warn, 'border-opacity': 1 } },
@@ -187,7 +233,7 @@ function stylesheet(t: ChartTheme): StylesheetJson {
     // status cues come last so they win over the overlay colour/width and the changed halo
     {
       selector: 'node[kind = "node"][energised = 0]',
-      style: { 'background-opacity': 0, 'border-width': 2, 'border-color': t.muted, 'border-opacity': 1 },
+      style: { 'background-opacity': 0, 'border-width': NODE_HOLLOW_BORDER, 'border-color': t.muted, 'border-opacity': 1 },
     },
     {
       selector: 'node.appliance[in_service = 0], node.hub[in_service = 0]',
@@ -227,6 +273,10 @@ function stylesheet(t: ChartTheme): StylesheetJson {
       style: { 'underlay-padding': 1.5, 'underlay-opacity': 0.4, 'text-border-color': t.warn } as never,
     },
     { selector: 'node:selected', style: { 'border-color': t.accent, 'border-width': 3 } },
+    {
+      selector: 'node[kind = "node"]:selected',
+      style: { 'border-width': NODE_SELECTED_BORDER, 'overlay-padding': NODE_SELECTED_OVERLAY },
+    },
     { selector: 'node.sym:selected', style: { 'border-width': 2, 'border-opacity': 1 } },
   ]
 }
@@ -323,6 +373,14 @@ export function NetworkDiagram({
     cyRef.current = cy
     if (import.meta.env.DEV) window.__gridsimCy = cy
     cy.on('tap', (evt) => {
+      // a click on the background or an edge right beside a bus node selects the node (small dots, ~14 px target)
+      if (evt.target === cy || evt.target.isEdge()) {
+        const near = busNodeNear(cy, evt.renderedPosition)
+        if (near) {
+          onSelectRef.current?.({ kind: 'node', id: Number(near.data('eid')) })
+          return
+        }
+      }
       if (evt.target === cy) {
         onSelectRef.current?.(null)
         return
@@ -392,7 +450,7 @@ export function NetworkDiagram({
     const cy = cyRef.current
     if (!cy) return
     cy.batch(() => {
-      cy.style(stylesheet(theme))
+      cy.style(stylesheet(theme, !!overlay?.nodeColor))
       cy.nodes('[kind = "node"]').forEach((n) => {
         const id = Number(n.data('eid'))
         n.data('color', overlay?.nodeColor ? overlay.nodeColor(id) : voltageColor(levels, Number(n.data('u_rated')), theme))
