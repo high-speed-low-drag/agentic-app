@@ -23,10 +23,10 @@ payload would exceed ~5 MB.
 
 ## 2. (Optional) New backend endpoint
 
-- Add the query function in `backend/src/gridsim/results.py`. Read the run's parquet
+- Add the query function in `backend/src/gridsim/results/query.py`. Read the run's parquet
   through the existing cached loaders.
 - Add a Pydantic response model in `backend/src/gridsim/models.py`, and the route in
-  `backend/src/gridsim/api/` next to the other results routes. Set `response_model`.
+  `backend/src/gridsim/api/routes/results.py`. Set `response_model`.
 - Document it in `docs/api-contract.md`.
 - Add an API test in `backend/tests/` that runs a small study and calls the endpoint.
 - Run `make types` to regenerate the frontend types.

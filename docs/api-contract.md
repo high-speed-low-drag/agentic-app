@@ -129,3 +129,10 @@ Timesteps are aggregated (max) into at most `max_columns` buckets. Elements are 
 
 `GET /api/runs/{run_id}/snapshot?t=<index>` → `{"index": 12, "timestamp": "…", "nodes": {"<id>": u_pu}, "branches": {"<id>": loading}}`
 (keys are string ids; values may be null)
+
+## Implementation notes (v0 backend)
+- Branch `type` may also be `asym_line`.
+- Error codes: 404 unknown resource · 409 conflict (duplicate case id, deleting an active run, results of a non-succeeded run) · 400 bad params/upload · 422 validation (`detail` is always a string; `POST /cases/{id}/runs` 422 also carries `ok, n_timesteps, issues`).
+- `timeseries` `ids` is optional (omitted = all elements). `heatmap` `max_columns` defaults to 500 (1..5000).
+- `csv` generator params: `file_id`, `column`, `repeat` (default true). `ev_charging` defaults to `add` mode (0/1 output, needs `magnitude_w`).
+- `summary.violations` is capped at 5000 episodes; the KPI counts are always totals.

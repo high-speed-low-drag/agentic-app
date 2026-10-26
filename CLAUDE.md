@@ -14,7 +14,7 @@ making changes.
 - `backend/`: Python 3.12, uv, FastAPI, PGM. Package `backend/src/gridsim/`.
   - Registries (extension points): `networks/` (network sources), `profiles/` (profile
     generators), `studies/` (study types).
-  - `engine/pgm_adapter.py` (batch power flow), `runner.py` (jobs), `results.py`
+  - `engine/pgm_adapter.py` (batch power flow), `runner.py` (jobs), `results/`
     (queries), `workspace.py` (file storage), `api/` (routes), `cli.py`.
 - `frontend/`: Vite + React + TS + Tailwind + ECharts + Cytoscape.
   - `src/api/`: types, client, react-query hooks. `src/results/views/`: result-view registry.
