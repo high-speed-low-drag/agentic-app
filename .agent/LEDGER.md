@@ -58,3 +58,4 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 - T14 approved by user; queued until T13 is committed. Issue #3 raised (deferred): zoomable timeline.
 - T13 done: make check (58 pytest, 58 vitest) + make e2e (12/12) verified. Orchestrator's commit -a swept T13 WIP into a brief commit; split it before checkpointing, and added an explicit-paths rule to docs/agentic-workflow.md. T14 sub-agent started.
 - T14 done: make check (58 pytest, 69 vitest) + make e2e (13/13) verified; screenshots reviewed. Noted: toolbar time uses 12h AM/PM while clock uses 24h; clock card covers part of diagram.
+- Issue #4 raised (deferred): clock polish (24h toolbar time, card covers diagram).
