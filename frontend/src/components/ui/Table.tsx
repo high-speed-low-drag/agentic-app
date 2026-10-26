@@ -74,7 +74,7 @@ export function Table<T>({
   const alignCls = (a?: string) => (a === 'right' ? 'text-right' : a === 'center' ? 'text-center' : 'text-left')
 
   return (
-    <div className={cn('overflow-auto', className)} style={{ maxHeight }}>
+    <div data-table-scroll className={cn('overflow-auto', className)} style={{ maxHeight }}>
       <table className="w-full border-collapse text-sm">
         <thead className="sticky top-0 z-[1] bg-surface-2">
           <tr>

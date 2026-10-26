@@ -9,7 +9,7 @@ import type { ElementKind, ElementRef } from './graph'
 import type { EditableColumn } from './overrides'
 import { changeCounts, changedCells, changedElements, editableColumns, findOverride, revertColumn, setOverride, tabComponents } from './overrides'
 import type { TableRow as Row } from './selection'
-import { filtersToClear, matchesSearch, prefersReducedMotion, tableRows } from './selection'
+import { filtersToClear, matchesSearch, prefersReducedMotion, scrollTopToShow, tableRows } from './selection'
 
 /** Editing support: pass all three to make the editable fields' cells editable. */
 export interface ElementTableEditing {
@@ -18,8 +18,12 @@ export interface ElementTableEditing {
   onChange: (next: NetworkOverride[]) => void
 }
 
-/** Imperative handle: jump to an element's row (switch tab, clear hiding filters, scroll, flash). */
+/** Imperative handle for the shared selection. */
 export interface ElementTableHandle {
+  /** Quiet select (diagram click): switch to the element's tab and scroll its row into view inside the
+   *  table's own scroll container only. Filters are left alone; a row they hide is simply not shown. */
+  select: (ref: ElementRef) => void
+  /** Jump to an element's row ("Edit in table"): switch tab, clear hiding filters, page scroll, flash. */
   reveal: (ref: ElementRef) => void
 }
 
@@ -52,9 +56,9 @@ export function ElementTable({
   const [confirmRevert, setConfirmRevert] = useState(false)
   /** "Filters cleared to show X" after a reveal had to clear the search or "Changed only". */
   const [note, setNote] = useState<string | null>(null)
-  /** Bumped per reveal so revealing the same row again still re-renders (and scrolls). */
+  /** Bumped per select/reveal so doing it again for the same row still re-renders (and scrolls). */
   const [, setRevealCount] = useState(0)
-  const pendingReveal = useRef<number | null>(null)
+  const pendingReveal = useRef<{ id: number; quiet: boolean } | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   const nodeName = useMemo(() => new Map(topology.nodes.map((n) => [n.id, n.name])), [topology])
 
@@ -72,6 +76,12 @@ export function ElementTable({
   useImperativeHandle(
     ref,
     () => ({
+      select: (el: ElementRef) => {
+        setTab(el.kind)
+        setNote(null)
+        pendingReveal.current = { id: el.id, quiet: true }
+        setRevealCount((n) => n + 1)
+      },
       reveal: (el: ElementRef) => {
         const row = tableRows(topology, el.kind, nodeName).find((r) => r.id === el.id)
         setTab(el.kind)
@@ -79,18 +89,29 @@ export function ElementTable({
         if (clear?.q) setQ('')
         if (clear?.changedOnly) setChangedOnly(false)
         setNote(row && (clear?.q || clear?.changedOnly) ? `Filters cleared to show ${row.name}` : null)
-        pendingReveal.current = row ? row.id : null
+        pendingReveal.current = row ? { id: row.id, quiet: false } : null
         setRevealCount((n) => n + 1)
       },
     }),
     [topology, nodeName, q, changedOnly, changedEls],
   )
 
-  // After a reveal renders: scroll the row into view (table and page, only as much as needed) and flash it once.
+  // After a select/reveal renders: scroll the row into view and, for a reveal, flash it once.
   useEffect(() => {
-    const id = pendingReveal.current
-    if (id === null) return
-    const tr = wrapRef.current?.querySelector<HTMLElement>(`tr[data-row-key="${id}"]`)
+    const pending = pendingReveal.current
+    if (pending === null) return
+    const tr = wrapRef.current?.querySelector<HTMLElement>(`tr[data-row-key="${pending.id}"]`)
+    if (pending.quiet) {
+      // Table scroll container only: never scrollIntoView, which can scroll the page.
+      pendingReveal.current = null
+      const box = tr?.closest<HTMLElement>('[data-table-scroll]')
+      if (!tr || !box) return // hidden by the filters: leave them alone
+      const header = box.querySelector('thead')?.offsetHeight ?? 0
+      const rowTop = tr.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop
+      box.scrollTop = scrollTopToShow(rowTop, tr.offsetHeight, box.scrollTop, box.clientHeight, header)
+      box.scrollLeft = 0
+      return
+    }
     if (!tr) return
     pendingReveal.current = null
     const reduced = prefersReducedMotion()

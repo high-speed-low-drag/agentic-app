@@ -9,8 +9,11 @@ async function waitForCy(page: Page, id: string) {
   await page.waitForFunction((id) => !!(window as W).__gridsimCy?.getElementById(id).nonempty(), id)
 }
 
-/** Zoom in on a diagram element, then click it with the real mouse. `id` is the Cytoscape id (n1, a104, ...). */
-async function clickInDiagram(page: Page, id: string) {
+/**
+ * Zoom in on a diagram element, then click it with the real mouse. `id` is the Cytoscape id (n1, a104, ...).
+ * Returns the page's scrollY just before the click (after scrolling the diagram into view).
+ */
+async function clickInDiagram(page: Page, id: string): Promise<number> {
   await page.getByTestId('network-diagram').scrollIntoViewIfNeeded()
   await waitForCy(page, id)
   const pos = await page.evaluate((id) => {
@@ -20,21 +23,36 @@ async function clickInDiagram(page: Page, id: string) {
     cy.center(ele)
     const p = ele.renderedPosition()
     const r = cy.container()!.getBoundingClientRect()
-    return { x: r.left + p.x, y: r.top + p.y }
+    return { x: r.left + p.x, y: r.top + p.y, scrollY: window.scrollY }
   }, id)
   await page.mouse.click(pos.x, pos.y)
+  return pos.scrollY
 }
 
 const cySelected = (page: Page) => page.evaluate(() => (window as W).__gridsimCy!.$(':selected').map((e) => e.id()))
+const scrollY = (page: Page) => page.evaluate(() => window.scrollY)
 
-test('click a load glyph in the diagram: Appliances tab, row visible, highlighted, P editable', async ({ page }) => {
+/** Is the row fully inside its table's own scroll container (regardless of the page viewport)? */
+const rowInTableBox = (page: Page, key: string) =>
+  page.evaluate((key) => {
+    const tr = document.querySelector<HTMLElement>(`[data-testid="element-table"] tr[data-row-key="${key}"]`)
+    const box = tr?.closest<HTMLElement>('[data-table-scroll]')
+    if (!tr || !box) return false
+    const r = tr.getBoundingClientRect()
+    const b = box.getBoundingClientRect()
+    return r.top >= b.top - 1 && r.bottom <= b.bottom + 1
+  }, key)
+
+test('a diagram pick selects quietly: no page scroll, table tab + row highlighted', async ({ page }) => {
   await newCase(page, 'E2E click to row')
   const table = page.getByTestId('element-table')
+  const diagram = page.getByTestId('network-diagram')
   await expect(table).toHaveAttribute('data-tab', 'node')
 
   // Load1 is sym_load 104 on vision_mv.
-  await clickInDiagram(page, 'a104')
-  await expect(page.getByTestId('network-diagram')).toHaveAttribute('data-selected', 'appliance:104')
+  const before = await clickInDiagram(page, 'a104')
+  await expect(diagram).toHaveAttribute('data-selected', 'appliance:104')
+  await expect(page.getByTestId('show-in-table')).toBeVisible() // details panel filled
   await expect(table).toHaveAttribute('data-tab', 'appliance')
   await expect(table.getByRole('tab', { name: /^Appliances/ })).toHaveAttribute('aria-selected', 'true')
 
@@ -42,8 +60,29 @@ test('click a load glyph in the diagram: Appliances tab, row visible, highlighte
   await expect(row).toHaveCount(1)
   await expect(row).toContainText('Load1')
   await expect(row).toHaveClass(/bg-accent-soft/)
+  await expect(row).not.toHaveClass(/row-flash/)
+  await expect.poll(() => rowInTableBox(page, '104')).toBe(true)
+  await expect(table.getByTestId('filters-cleared-note')).toHaveCount(0)
+  // Give any (unwanted) smooth scroll time to show up, then check the page did not move.
+  await page.waitForTimeout(400)
+  expect(Math.abs((await scrollY(page)) - before)).toBeLessThanOrEqual(2)
+  await expect(diagram).toBeInViewport()
+})
+
+test('"Edit in table" jumps to the row: page scroll, highlight, P editable, Back to diagram', async ({ page }) => {
+  await newCase(page, 'E2E edit in table')
+  const table = page.getByTestId('element-table')
+  const diagram = page.getByTestId('network-diagram')
+
+  await clickInDiagram(page, 'a104')
+  await expect(diagram).toHaveAttribute('data-selected', 'appliance:104')
+  const row = table.locator('tr[data-row-key="104"]')
+  await expect(row).toHaveAttribute('data-selected', 'true')
+  await expect(row).not.toBeInViewport()
+
+  await page.getByTestId('show-in-table').click()
   await expect(row).toBeInViewport()
-  await expect(row.getByTestId('back-to-diagram')).toBeVisible()
+  await expect(row).toHaveClass(/bg-accent-soft/)
   await expect(table.getByTestId('filters-cleared-note')).toHaveCount(0)
 
   const p = table.getByLabel('P of Load1', { exact: true })
@@ -55,31 +94,34 @@ test('click a load glyph in the diagram: Appliances tab, row visible, highlighte
 
   // Clicking an input in another row edits it without changing the selection.
   await table.locator('tr[data-testid="table-row"]:not([data-selected])').first().locator('input').first().click()
-  await expect(page.getByTestId('network-diagram')).toHaveAttribute('data-selected', 'appliance:104')
+  await expect(diagram).toHaveAttribute('data-selected', 'appliance:104')
 
   // "Back to diagram" scrolls the diagram into view.
   await row.getByTestId('back-to-diagram').click()
-  await expect(page.getByTestId('network-diagram')).toBeInViewport()
+  await expect(diagram).toBeInViewport()
 })
 
-test('a diagram pick clears a hiding "Changed only" filter and says so', async ({ page }) => {
+test('filters: a diagram pick leaves "Changed only" alone; "Edit in table" clears it and says so', async ({ page }) => {
   await newCase(page, 'E2E click to row filters')
   const table = page.getByTestId('element-table')
-  await table.getByLabel('Changed only').check()
+  const changedOnly = table.getByLabel('Changed only')
+  await changedOnly.check()
   await expect(table.getByTestId('table-row')).toHaveCount(0)
 
-  await waitForCy(page, 'n1')
-  const node = await page.evaluate(() => {
-    const n = (window as W).__gridsimCy!.nodes('[kind = "node"]')[0]
-    return { cyId: n.id(), id: Number(n.data('eid')), name: String(n.data('label')) }
-  })
-  await clickInDiagram(page, node.cyId)
+  const before = await clickInDiagram(page, 'a104')
+  await expect(page.getByTestId('network-diagram')).toHaveAttribute('data-selected', 'appliance:104')
+  await expect(table).toHaveAttribute('data-tab', 'appliance')
+  await expect(changedOnly).toBeChecked()
+  await expect(table.getByTestId('table-row')).toHaveCount(0)
+  await expect(table.getByTestId('filters-cleared-note')).toHaveCount(0)
+  await page.waitForTimeout(400)
+  expect(Math.abs((await scrollY(page)) - before)).toBeLessThanOrEqual(2)
 
-  await expect(table).toHaveAttribute('data-tab', 'node')
-  await expect(table.getByLabel('Changed only')).not.toBeChecked()
+  await page.getByTestId('show-in-table').click()
+  await expect(changedOnly).not.toBeChecked()
   const note = table.getByTestId('filters-cleared-note')
-  await expect(note).toHaveText(`Filters cleared to show ${node.name}`)
-  const row = table.locator(`tr[data-row-key="${node.id}"]`)
+  await expect(note).toHaveText('Filters cleared to show Load1')
+  const row = table.locator('tr[data-row-key="104"]')
   await expect(row).toHaveAttribute('data-selected', 'true')
   await expect(row).toBeInViewport()
 

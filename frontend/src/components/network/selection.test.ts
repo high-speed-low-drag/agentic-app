@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { NetworkTopology } from '../../api/schema'
-import { filtersToClear, FOCUS_ZOOM, focusZoom, matchesSearch, selectionEffects, tableRows } from './selection'
+import { filtersToClear, FOCUS_ZOOM, focusZoom, matchesSearch, scrollTopToShow, selectionEffects, tableRows } from './selection'
 
 const topo = {
   source: 'sample',
@@ -72,9 +72,29 @@ describe('focusZoom', () => {
 })
 
 describe('selectionEffects', () => {
-  it('reveals the row for diagram picks and centres the diagram otherwise', () => {
-    expect(selectionEffects('diagram')).toEqual({ revealRow: true, centreDiagram: false })
-    expect(selectionEffects('table')).toEqual({ revealRow: false, centreDiagram: true })
-    expect(selectionEffects('details')).toEqual({ revealRow: false, centreDiagram: true })
+  it('diagram picks select quietly in the table; table/details picks centre the diagram', () => {
+    expect(selectionEffects('diagram')).toEqual({ table: 'quiet', centreDiagram: false })
+    expect(selectionEffects('table')).toEqual({ table: 'none', centreDiagram: true })
+    expect(selectionEffects('details')).toEqual({ table: 'none', centreDiagram: true })
+  })
+  it('only an explicit "Edit in table" reveal jumps to the table', () => {
+    expect(selectionEffects('details', true)).toEqual({ table: 'reveal', centreDiagram: false })
+  })
+})
+
+describe('scrollTopToShow', () => {
+  // view 200 px high, sticky header 30 px, rows 20 px
+  it('keeps the scroll when the row is already fully visible below the header', () => {
+    expect(scrollTopToShow(100, 20, 50, 200, 30)).toBe(50)
+  })
+  it('scrolls up so the row sits just below the sticky header', () => {
+    expect(scrollTopToShow(60, 20, 50, 200, 30)).toBe(30)
+    expect(scrollTopToShow(10, 20, 50, 200, 30)).toBe(0)
+  })
+  it('scrolls down just enough to show the row at the bottom', () => {
+    expect(scrollTopToShow(400, 20, 0, 200, 30)).toBe(220)
+  })
+  it('prefers the row top when the row is taller than the view', () => {
+    expect(scrollTopToShow(400, 300, 0, 200, 30)).toBe(370)
   })
 })

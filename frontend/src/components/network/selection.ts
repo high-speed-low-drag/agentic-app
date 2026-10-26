@@ -7,7 +7,7 @@ import { fmtKv, fmtPowerW, fmtVar } from '../../lib/format'
 import type { ElementKind, ElementRef } from './graph'
 import { BRANCH_TYPE_LABELS } from './graph'
 
-/** Where a selection came from; decides the side effects (jump to table, centre diagram). */
+/** Where a selection came from; decides the side effects (quiet table select, centre diagram). */
 export type SelectionSource = 'diagram' | 'table' | 'details'
 
 export type TableRow = {
@@ -105,9 +105,36 @@ export function focusZoom(current: number, maxZoom = Infinity): number {
   return current < FOCUS_MIN_ZOOM ? Math.min(FOCUS_ZOOM, maxZoom) : current
 }
 
-/** Side effects of a selection by source: reveal the table row and/or centre the diagram. */
-export function selectionEffects(source: SelectionSource): { revealRow: boolean; centreDiagram: boolean } {
-  return { revealRow: source === 'diagram', centreDiagram: source !== 'diagram' }
+/**
+ * What a selection does to the element table:
+ * - 'none': nothing;
+ * - 'quiet': switch to the element's tab and scroll the row into view inside the table's own scroll
+ *   container only (no page scroll, flash, filter clearing or note);
+ * - 'reveal': the full jump ("Edit in table"): clear hiding filters with a note, page scroll, flash.
+ */
+export type TableEffect = 'none' | 'quiet' | 'reveal'
+
+/**
+ * Side effects of a selection by source. `reveal` marks an explicit "Edit in table" request
+ * (from the details panel), which is the only selection that jumps to the table.
+ */
+export function selectionEffects(source: SelectionSource, reveal = false): { table: TableEffect; centreDiagram: boolean } {
+  if (reveal) return { table: 'reveal', centreDiagram: false }
+  if (source === 'diagram') return { table: 'quiet', centreDiagram: false }
+  return { table: 'none', centreDiagram: true }
+}
+
+/**
+ * Container scrollTop that brings a row into view inside a scroll container, moving as little as
+ * needed. Positions are relative to the scrolled content; `stickyTop` is the height of a sticky
+ * header covering the top of the viewport.
+ */
+export function scrollTopToShow(rowTop: number, rowHeight: number, scrollTop: number, viewHeight: number, stickyTop = 0): number {
+  const top = rowTop - stickyTop
+  if (top < scrollTop) return Math.max(0, top)
+  const bottom = rowTop + rowHeight - viewHeight
+  if (bottom > scrollTop) return Math.min(bottom, top)
+  return scrollTop
 }
 
 export const prefersReducedMotion = () =>
