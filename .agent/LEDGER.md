@@ -43,6 +43,7 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 | T18 | User-defined 4-point voltage colour scale (browser setting) | done | T17 | frontend/ | `make check && make e2e` |
 | T19 | Time series limit lines always visible (axis includes limits) | done | T18 | frontend/ | `make check && make e2e` |
 | T20 | Neutral (within-band) vs not-energised nodes distinct | done | T19 | frontend/ | `make check && make e2e` |
+| T21 | GitHub Actions CI: make check + make e2e on PRs | in_progress | T20 | .github/, frontend/playwright.config.ts, Makefile, README | local CI=1 make check && make e2e; then first CI run on PR #6 green |
 
 ## Log
 - 2026-10-26: profile scale factor shipped (d1d031c). T6 approved by user; sub-agent started.
@@ -78,3 +79,4 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 - T20 approved by user; sub-agent started.
 - T20 done: make check (59 pytest, 95 vitest) + make e2e (22/22) verified; screenshots reviewed. PV investigation: demo case applies PV in scale mode on loads (multiplies demand); PV-scale-on-loads warning offered, awaiting decision.
 - Issue #5 raised (deferred): warn on PV scale mode on loads.
+- PR #6 opened. T21 (CI) approved by user; sub-agent started.
