@@ -88,3 +88,14 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 - T22 done: project.md (2,796 lines, 16 sections + appendix) reviewed; cross-check of routes/views/e2e/editable fields passed; orchestrator filled in exact PGM sample paths. Committed locally, not pushed.
 - User: project.md misses the mark (describes how, not what). T23 rewrite started.
 - T23 done: project.md rewritten as product spec (1,413 lines, 7 sections, 20 feature subsections with numbered requirements + acceptance criteria); reviewed, no stack/code leakage. Committed locally.
+
+# Milestone 3: Planned work (stored 2026-10-26; nothing built until each item gets a brief and the user's go-ahead)
+
+| id | task | status | deps | owns | done check |
+|----|------|--------|------|------|------------|
+| T24 | Pluggable data sources: network + profile sources behind interfaces (DB/lakehouse ready), source config, reference adapter | proposed | – | backend/ (networks/, profiles/, new sources/), frontend pickers | make check && make e2e + adapter conformance tests |
+| T25 | Pluggable load-flow engine seam: engine interface at study level, PGM as the only implementation, conformance tests vs PGM | proposed (decision pending) | T24 | backend/ (engine/, studies/) | make check && make e2e + engine conformance suite |
+
+## Planning notes
+- T24/T25 assessment (2026-10-26): data sources = high value, extends existing NetworkSource pattern (profiles need a ProfileSource beside generators). Engine pluggability = costly: the internal model, editable fields, overrides, topology and results schema are all PGM-shaped, and PGM batch is the performance core. Recommended: build T24; for T25 add a thin seam + conformance tests only, second engine only on concrete need. project.md section 2 ("power-grid-model is the only solver") must change if T25 goes ahead.
+- Open questions for tomorrow: which database/lakehouse (Databricks/Delta, Snowflake, Postgres/Timescale, other)? read-only or also write results back? which engine candidates and why (pandapower, OpenDSS, other)?
