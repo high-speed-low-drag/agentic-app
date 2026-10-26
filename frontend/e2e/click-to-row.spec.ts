@@ -1,33 +1,14 @@
 import { expect, test, type Page } from '@playwright/test'
 import type { Core } from 'cytoscape'
-import { newCase } from './helpers'
+import { clickInDiagram as clickAt, newCase, waitForDiagram } from './helpers'
 
 type W = Window & { __gridsimCy?: Core }
-
-/** Wait for the diagram's Cytoscape instance (exposed in dev/test as window.__gridsimCy) to hold `id`. */
-async function waitForCy(page: Page, id: string) {
-  await page.waitForFunction((id) => !!(window as W).__gridsimCy?.getElementById(id).nonempty(), id)
-}
 
 /**
  * Zoom in on a diagram element, then click it with the real mouse. `id` is the Cytoscape id (n1, a104, ...).
  * Returns the page's scrollY just before the click (after scrolling the diagram into view).
  */
-async function clickInDiagram(page: Page, id: string): Promise<number> {
-  await page.getByTestId('network-diagram').scrollIntoViewIfNeeded()
-  await waitForCy(page, id)
-  const pos = await page.evaluate((id) => {
-    const cy = (window as W).__gridsimCy!
-    const ele = cy.getElementById(id)
-    cy.zoom(2.5)
-    cy.center(ele)
-    const p = ele.renderedPosition()
-    const r = cy.container()!.getBoundingClientRect()
-    return { x: r.left + p.x, y: r.top + p.y, scrollY: window.scrollY }
-  }, id)
-  await page.mouse.click(pos.x, pos.y)
-  return pos.scrollY
-}
+const clickInDiagram = async (page: Page, id: string) => (await clickAt(page, id)).scrollY
 
 const cySelected = (page: Page) => page.evaluate(() => (window as W).__gridsimCy!.$(':selected').map((e) => e.id()))
 const scrollY = (page: Page) => page.evaluate(() => window.scrollY)
@@ -133,7 +114,7 @@ test('clicking a table row selects that element in the diagram', async ({ page }
   await newCase(page, 'E2E row to diagram')
   const table = page.getByTestId('element-table')
   await table.getByRole('tab', { name: /^Branches/ }).click()
-  await waitForCy(page, 'n1')
+  await waitForDiagram(page, 'n1')
 
   const row = table.getByTestId('table-row').nth(2)
   const id = await row.getAttribute('data-row-key')

@@ -1,4 +1,4 @@
-import type { Core, LayoutOptions, NodeSingular, StylesheetJson } from 'cytoscape'
+import type { Core, LayoutOptions, NodeSingular, SingularElementArgument, StylesheetJson } from 'cytoscape'
 import cytoscape from 'cytoscape'
 import fcose from 'cytoscape-fcose'
 import { Maximize2, Minus, Plus } from 'lucide-react'
@@ -95,7 +95,8 @@ const NODE_LABEL_MARGIN = 1.5
 /**
  * Rendered radius (screen px) within which a click selects the nearest bus node, at any zoom.
  * Cytoscape's own hit area is the node's outer size plus 2 px a side (14 px at zoom 1); this
- * keeps a ~14 px target when zoomed out, or when a click lands on an edge right beside a node.
+ * keeps a ~14 px target when zoomed out, or when a click lands on something else right beside a node: the
+ * background, an edge, an appliance stub, or the rim of an overlapping symbol (see the `tap` handler).
  */
 const NODE_HIT_RADIUS = 7
 
@@ -114,6 +115,27 @@ function busNodeNear(cy: Core, p: { x: number; y: number } | undefined): NodeSin
     }
   })
   return best
+}
+
+const distSq = (a: { x: number; y: number }, b: { x: number; y: number }) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2
+
+/** What a tap on a diagram element selects, or null when the element is not itself selectable (an appliance stub). */
+function selectionFor(ele: SingularElementArgument): ElementRef | null {
+  const kind = ele.data('kind')
+  if (kind === 'hub' || kind === 'branch') return { kind: 'branch', id: Number(ele.data('eid')) }
+  if (kind === 'stub') return null
+  return parseCyId(String(ele.id()))
+}
+
+/**
+ * Cytoscape caches the container's page offset and refreshes it only on scroll and resize events. When the
+ * diagram moves without one (content above it changes height, or a click lands before the scroll event of a
+ * just-finished scroll is dispatched), clicks are projected to the wrong point. Refresh it on every press.
+ */
+function refreshContainerOffset(cy: Core) {
+  const r = (cy as unknown as { renderer?: () => { invalidateContainerClientCoordsCache?: () => void } | undefined }).renderer?.()
+  if (r?.invalidateContainerClientCoordsCache) r.invalidateContainerClientCoordsCache()
+  else cy.resize()
 }
 
 /** Model-space size (px at zoom 1) of each symbol kind. */
@@ -387,27 +409,22 @@ export function NetworkDiagram({
     cyRef.current = cy
     if (import.meta.env.DEV) window.__gridsimCy = cy
     cy.on('tap', (evt) => {
-      // a click on the background or an edge right beside a bus node selects the node (small dots, ~14 px target)
-      if (evt.target === cy || evt.target.isEdge()) {
-        const near = busNodeNear(cy, evt.renderedPosition)
-        if (near) {
+      const target: SingularElementArgument | null = evt.target === cy ? null : evt.target
+      const own = target ? selectionFor(target) : null
+      // small bus dots get a ~14 px target: a tap within NODE_HIT_RADIUS of one selects it, unless the tap is on
+      // a selectable symbol or appliance and nearer that element's centre (a programmatic tap has no position)
+      const p = evt.renderedPosition
+      const near = busNodeNear(cy, p)
+      if (near && p) {
+        const keep = !!own && !!target?.isNode() && distSq(p, target.renderedPosition()) <= distSq(p, near.renderedPosition())
+        if (!keep) {
           onSelectRef.current?.({ kind: 'node', id: Number(near.data('eid')) })
           return
         }
       }
-      if (evt.target === cy) {
-        onSelectRef.current?.(null)
-        return
-      }
-      const raw = String(evt.target.id())
-      const ele = evt.target
-      if (ele.data('kind') === 'hub' || ele.data('kind') === 'branch') {
-        onSelectRef.current?.({ kind: 'branch', id: Number(ele.data('eid')) })
-        return
-      }
-      if (ele.data('kind') === 'stub') return
-      const r = parseCyId(raw)
-      if (r) onSelectRef.current?.(r)
+      if (!target) onSelectRef.current?.(null)
+      else if (own) onSelectRef.current?.(own)
+      // a non-selectable element (an appliance stub) away from any bus node leaves the selection as it is
     })
     // native tooltip for status cues (out of service / not energised)
     cy.on('mouseover', 'node, edge', (evt) => {
@@ -444,14 +461,31 @@ export function NetworkDiagram({
       cy.batch(() => cy.nodes('.sym').forEach((n) => void n.data('sz', (SYMBOL_SIZE[n.data('sym')] ?? 20) * f)))
     }
     cy.on('zoom', sizeSymbols)
+    // `data-layout-ready` on the root: "1" once the layout (and its fit) has finished, "0" while one runs
+    const outer = outerRef.current
+    const setReady = (ready: boolean) => outer?.setAttribute('data-layout-ready', ready ? '1' : '0')
+    setReady(false)
+    let stopped = false
+    let afterRun = false
     const lay = cy.elements().not('.xfmr-symbol').layout(layoutOptions(layout, topology, elements.length))
-    lay.on('layoutstop', () => placeSymbols())
+    lay.on('layoutstop', () => {
+      stopped = true
+      placeSymbols()
+      if (afterRun) setReady(true) // an asynchronous layout
+    })
     lay.run()
+    afterRun = true
     placeSymbols()
     sizeSymbols()
+    if (stopped) setReady(true)
     const ro = new ResizeObserver(() => cy.resize())
     ro.observe(el)
+    const onPress = () => refreshContainerOffset(cy)
+    // capture phase on an ancestor: runs before Cytoscape's own mousedown/touchstart handlers
+    outer?.addEventListener('pointerdown', onPress, true)
     return () => {
+      outer?.removeEventListener('pointerdown', onPress, true)
+      setReady(false)
       ro.disconnect()
       cy.destroy()
       cyRef.current = null

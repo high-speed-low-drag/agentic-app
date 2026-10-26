@@ -1,24 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
-import type { Core } from 'cytoscape'
-import { newCase, openEditorTab } from './helpers'
-
-type W = Window & { __gridsimCy?: Core }
-
-/** Zoom in on a diagram element (Cytoscape id, e.g. a301) and click it with the real mouse. */
-async function clickInDiagram(page: Page, id: string) {
-  await page.getByTestId('network-diagram').scrollIntoViewIfNeeded()
-  await page.waitForFunction((id) => !!(window as W).__gridsimCy?.getElementById(id).nonempty(), id)
-  const pos = await page.evaluate((id) => {
-    const cy = (window as W).__gridsimCy!
-    const ele = cy.getElementById(id)
-    cy.zoom(2.5)
-    cy.center(ele)
-    const p = ele.renderedPosition()
-    const r = cy.container()!.getBoundingClientRect()
-    return { x: r.left + p.x, y: r.top + p.y }
-  }, id)
-  await page.mouse.click(pos.x, pos.y)
-}
+import { expect, test } from '@playwright/test'
+import { clickInDiagram, newCase, openEditorTab } from './helpers'
 
 test('an edited generator P shows in the profile target list and the details panel', async ({ page }) => {
   // ieee14: sym_gen 301 has P = 40 MW in the file.

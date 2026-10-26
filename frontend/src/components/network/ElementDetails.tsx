@@ -145,11 +145,11 @@ export function ElementDetails({
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2" data-testid="element-details" data-kind={selected.kind} data-id={selected.id}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <Badge tone="accent">{kindLabel}</Badge>
-          <div className="mt-1 truncate text-sm font-semibold text-fg" title={title}>
+          <div className="mt-1 truncate text-sm font-semibold text-fg" title={title} data-testid="details-title">
             {title}
           </div>
         </div>

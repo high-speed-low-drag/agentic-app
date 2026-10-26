@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import type { Core } from 'cytoscape'
 import type { NetworkTopology } from '../src/api/schema'
-import { newCase, openEditorTab } from './helpers'
+import { clickInDiagram, newCase, openEditorTab } from './helpers'
 
 type W = Window & { __gridsimCy?: Core }
 
@@ -26,22 +26,6 @@ const xfData = (page: Page, id: number) =>
     const n = (window as W).__gridsimCy!.$(`node.xfmr-symbol[eid = ${id}]`)
     return { variant: n.data('variant') as string, changed: n.hasClass('changed'), img: String(n.data('img') ?? '') }
   }, id)
-
-/** Zoom in on a Cytoscape element and click it with the real mouse. */
-async function clickInDiagram(page: Page, id: string) {
-  await page.getByTestId('network-diagram').scrollIntoViewIfNeeded()
-  await page.waitForFunction((id) => !!(window as W).__gridsimCy?.getElementById(id).nonempty(), id)
-  const pos = await page.evaluate((id) => {
-    const cy = (window as W).__gridsimCy!
-    const ele = cy.getElementById(id)
-    cy.zoom(2.5)
-    cy.center(ele)
-    const p = ele.renderedPosition()
-    const r = cy.container()!.getBoundingClientRect()
-    return { x: r.left + p.x, y: r.top + p.y }
-  }, id)
-  await page.mouse.click(pos.x, pos.y)
-}
 
 test('transformers, generators, sources and shunts are drawn as IEC symbols', async ({ page }) => {
   const topo = (await (await page.request.get('/api/networks/sample/vision_mv')).json()) as NetworkTopology
