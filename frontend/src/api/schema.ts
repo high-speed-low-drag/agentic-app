@@ -92,6 +92,8 @@ export interface TopologyAppliance {
   node: number
   p_specified?: number | null
   q_specified?: number | null
+  /** Shunts only: positive-sequence susceptance (S); > 0 capacitive, < 0 inductive. */
+  b1?: number | null
   in_service: boolean
   params: ParamValues
 }

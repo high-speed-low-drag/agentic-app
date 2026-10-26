@@ -6,6 +6,7 @@ import type { ElementDefinition } from 'cytoscape'
 import type { BranchType, NetworkTopology } from '../../api/schema'
 import type { ChartTheme } from '../charts/theme'
 import { mix } from '../charts/theme'
+import { shuntKind } from './symbols'
 
 export type ElementKind = 'node' | 'branch' | 'appliance' | 'source'
 
@@ -22,6 +23,9 @@ export function parseCyId(s: string): ElementRef | null {
   const kind = ({ n: 'node', b: 'branch', a: 'appliance', s: 'source' } as const)[m[1] as 'n' | 'b' | 'a' | 's']
   return { kind, id: Number(m[2]) }
 }
+
+/** Cytoscape id of a 2-winding transformer's symbol overlay node (not part of the layout). */
+export const xfmrSymbolId = (branchId: number) => `xf${branchId}`
 
 /** Distinct rated voltages, highest first. */
 export function voltageLevels(topo: NetworkTopology): number[] {
@@ -69,6 +73,7 @@ export function buildElements(topo: NetworkTopology, opts: BuildOptions): Elemen
   const els: ElementDefinition[] = []
   const nodeIds = new Set(topo.nodes.map((n) => n.id))
   const kv = (u: number) => `${+(u / 1000).toFixed(2)} kV`
+  const uRated = new Map(topo.nodes.map((n) => [n.id, n.u_rated]))
 
   for (const n of topo.nodes) {
     els.push({
@@ -83,13 +88,44 @@ export function buildElements(topo: NetworkTopology, opts: BuildOptions): Elemen
     if (b.type === 'three_winding_transformer' && b.node_3 != null && nodeIds.has(b.node_3)) {
       // star representation: hidden hub node + three legs, all mapping to the same branch
       const hub = `t${b.id}`
-      els.push({ group: 'nodes', data: { id: hub, kind: 'hub', eid: b.id, label: '', in_service: base.in_service }, classes: 'hub' })
+      const u = [b.from_node, b.to_node, b.node_3].map((n) => uRated.get(n))
+      els.push({
+        group: 'nodes',
+        data: { id: hub, kind: 'hub', eid: b.id, label: '', in_service: base.in_service, sym: 'xfmr3', u1: u[0], u2: u[1], u3: u[2] },
+        classes: 'hub sym',
+      })
       ;[b.from_node, b.to_node, b.node_3].forEach((nid, i) => {
         els.push({
           group: 'edges',
           data: { ...base, id: `${cyId('branch', b.id)}_${i}`, source: hub, target: cyId('node', nid), label: i === 0 ? b.name : '', leg: i },
           classes: 'branch',
         })
+      })
+    } else if (b.type === 'transformer') {
+      // the edge keeps the loading colour/width; an overlay node on its midpoint draws the symbol
+      const xf = xfmrSymbolId(b.id)
+      els.push({
+        group: 'edges',
+        data: { ...base, id: cyId('branch', b.id), source: cyId('node', b.from_node), target: cyId('node', b.to_node), xf },
+        classes: 'branch xfmr',
+      })
+      els.push({
+        group: 'nodes',
+        data: {
+          id: xf,
+          kind: 'branch',
+          eid: b.id,
+          label: '',
+          in_service: base.in_service,
+          sym: 'xfmr',
+          edge: cyId('branch', b.id),
+          u_from: uRated.get(b.from_node),
+          u_to: uRated.get(b.to_node),
+          angle: 0,
+        },
+        classes: 'xfmr-symbol sym',
+        grabbable: false,
+        pannable: true,
       })
     } else {
       els.push({
@@ -102,7 +138,11 @@ export function buildElements(topo: NetworkTopology, opts: BuildOptions): Elemen
   if (opts.showSources) {
     for (const s of topo.sources) {
       if (!nodeIds.has(s.node)) continue
-      els.push({ group: 'nodes', data: { id: cyId('source', s.id), kind: 'source', eid: s.id, label: s.name }, classes: 'source' })
+      els.push({
+        group: 'nodes',
+        data: { id: cyId('source', s.id), kind: 'source', eid: s.id, label: s.name, sym: 'grid', in_service: 1 },
+        classes: 'source sym',
+      })
       els.push({
         group: 'edges',
         data: { id: `x${cyId('source', s.id)}`, source: cyId('source', s.id), target: cyId('node', s.node), kind: 'stub' },
@@ -113,11 +153,14 @@ export function buildElements(topo: NetworkTopology, opts: BuildOptions): Elemen
   if (opts.showAppliances) {
     for (const a of topo.appliances) {
       if (!nodeIds.has(a.node)) continue
-      const cls = a.type.includes('gen') ? 'appliance gen' : a.type === 'shunt' ? 'appliance shunt' : 'appliance load'
+      const gen = a.type.includes('gen')
+      const shunt = a.type === 'shunt'
+      const cls = gen ? 'appliance gen sym' : shunt ? 'appliance shunt sym' : 'appliance load'
       const in_service = a.in_service ? 1 : 0
+      const sym = gen ? { sym: 'gen' } : shunt ? { sym: 'shunt', shunt: shuntKind(a.b1) } : {}
       els.push({
         group: 'nodes',
-        data: { id: cyId('appliance', a.id), kind: 'appliance', eid: a.id, atype: a.type, label: '', in_service },
+        data: { id: cyId('appliance', a.id), kind: 'appliance', eid: a.id, atype: a.type, label: '', in_service, ...sym },
         classes: cls,
       })
       els.push({

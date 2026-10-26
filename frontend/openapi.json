@@ -2570,6 +2570,18 @@
             ],
             "title": "Q Specified"
           },
+          "b1": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "B1",
+            "description": "Shunt positive-sequence susceptance (S); >0 capacitive, <0 inductive"
+          },
           "in_service": {
             "type": "boolean",
             "title": "In Service",

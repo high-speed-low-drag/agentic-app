@@ -35,6 +35,20 @@ def test_ieee14_generic_branch_default_names() -> None:
     assert {a.type for a in topo.appliances} == {"sym_load", "sym_gen", "shunt"}
 
 
+def test_shunt_susceptance_in_topology() -> None:
+    shunts = {
+        a.id: a
+        for a in load_network("sample", "vision_mv").topology.appliances
+        if a.type == "shunt"
+    }
+    assert shunts[126].b1 is not None and shunts[126].b1 > 0  # capacitor
+    assert shunts[127].b1 is not None and shunts[127].b1 < 0  # reactor
+    load = next(
+        a for a in load_network("sample", "vision_mv").topology.appliances if a.type == "sym_load"
+    )
+    assert load.b1 is None
+
+
 def test_unknown_network() -> None:
     with pytest.raises(UnknownKeyError):
         load_network("sample", "nope")

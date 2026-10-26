@@ -957,6 +957,11 @@ export interface components {
             /** Q Specified */
             q_specified?: number | null;
             /**
+             * B1
+             * @description Shunt positive-sequence susceptance (S); >0 capacitive, <0 inductive
+             */
+            b1?: number | null;
+            /**
              * In Service
              * @default true
              */

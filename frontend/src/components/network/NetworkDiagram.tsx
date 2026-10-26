@@ -1,4 +1,4 @@
-import type { Core, LayoutOptions, StylesheetJson } from 'cytoscape'
+import type { Core, LayoutOptions, NodeSingular, StylesheetJson } from 'cytoscape'
 import cytoscape from 'cytoscape'
 import fcose from 'cytoscape-fcose'
 import { Maximize2, Minus, Plus } from 'lucide-react'
@@ -12,6 +12,8 @@ import type { ElementRef } from './graph'
 import { branchTypeColor, buildElements, cyId, parseCyId, rootNodeIds, voltageColor, voltageLevels } from './graph'
 import { branchInService, energisedNodes, ISLANDED_TIP, OOS_LABEL, OOS_TIP, OOS_WIDTH } from './energised'
 import { focusZoom, prefersReducedMotion } from './selection'
+import type { ShuntKind, SymbolPalette } from './symbols'
+import { quantisedAngle, symbolScale, symbolUri } from './symbols'
 
 declare global {
   interface Window {
@@ -73,6 +75,37 @@ export interface NetworkDiagramProps {
   ref?: Ref<NetworkDiagramHandle>
 }
 
+/** Model-space size (px at zoom 1) of each symbol kind. */
+const SYMBOL_SIZE: Record<string, number> = { xfmr: 28, xfmr3: 28, grid: 24, gen: 18, shunt: 18 }
+function symbolPalette(t: ChartTheme, stroke = t.fg2): SymbolPalette {
+  return { stroke, surface: t.surface, muted: t.muted }
+}
+
+/** (Re)draw one symbol node's image from its data (kind, voltage levels, status, angle) and the theme. */
+function paintSymbol(n: NodeSingular, t: ChartTheme, levels: number[]) {
+  const off = Number(n.data('in_service') ?? 1) === 0
+  const vc = (u: unknown) => voltageColor(levels, Number(u), t)
+  let img = ''
+  switch (n.data('sym')) {
+    case 'xfmr':
+      img = symbolUri.transformer(vc(n.data('u_from')), vc(n.data('u_to')), symbolPalette(t), { off, angle: Number(n.data('angle') ?? 0) })
+      break
+    case 'xfmr3':
+      img = symbolUri.transformer3([vc(n.data('u1')), vc(n.data('u2')), vc(n.data('u3'))], symbolPalette(t), { off })
+      break
+    case 'gen':
+      img = symbolUri.generator(symbolPalette(t, t.series[2]), { off })
+      break
+    case 'grid':
+      img = symbolUri.externalGrid(symbolPalette(t, t.fg), { off })
+      break
+    case 'shunt':
+      img = symbolUri.shunt(n.data('shunt') as ShuntKind, symbolPalette(t), { off })
+      break
+  }
+  if (n.data('img') !== img) n.data({ img, variant: off ? 'off' : 'on' })
+}
+
 function stylesheet(t: ChartTheme): StylesheetJson {
   return [
     {
@@ -106,6 +139,26 @@ function stylesheet(t: ChartTheme): StylesheetJson {
     { selector: 'node.load', style: { shape: 'triangle' } },
     { selector: 'node.gen', style: { shape: 'ellipse', 'background-color': t.series[2] } },
     { selector: 'node.shunt', style: { shape: 'rectangle' } },
+    // IEC symbols: an SVG image on a transparent, borderless ellipse (the border is the changed/selected ring)
+    {
+      selector: 'node.sym',
+      style: {
+        shape: 'ellipse',
+        width: 'data(sz)',
+        height: 'data(sz)',
+        'background-color': t.surface,
+        'background-opacity': 0,
+        'background-image': 'data(img)',
+        'background-fit': 'contain',
+        'background-width': '86%',
+        'background-height': '86%',
+        'background-clip': 'none',
+        'background-image-containment': 'over',
+        'border-width': 0,
+        'border-opacity': 0,
+      } as never,
+    },
+    { selector: 'node.xfmr-symbol', style: { 'background-width': '100%', 'background-height': '100%', label: '' } },
     {
       selector: 'edge',
       style: {
@@ -126,6 +179,7 @@ function stylesheet(t: ChartTheme): StylesheetJson {
       style: { 'border-color': t.warn, 'border-width': 3, 'border-opacity': 1, width: 16, height: 16 },
     },
     { selector: 'node.appliance.changed', style: { width: 10, height: 10, 'border-width': 2.5 } },
+    { selector: 'node.sym.changed', style: { width: 'data(sz)', height: 'data(sz)', 'border-width': 2, 'border-color': t.warn, 'border-opacity': 1 } },
     {
       selector: 'edge.changed',
       style: { 'underlay-color': t.warn, 'underlay-opacity': 0.55, 'underlay-padding': 4 } as never,
@@ -139,6 +193,9 @@ function stylesheet(t: ChartTheme): StylesheetJson {
       selector: 'node.appliance[in_service = 0], node.hub[in_service = 0]',
       style: { 'background-opacity': 0, 'border-width': 1.2, 'border-color': t.muted, 'border-opacity': 1 },
     },
+    // symbols draw their own out-of-service variant (hollow, muted); keep only the changed ring
+    { selector: 'node.sym[in_service = 0]', style: { 'border-width': 0, 'border-opacity': 0 } },
+    { selector: 'node.sym.changed[in_service = 0]', style: { 'border-width': 2, 'border-color': t.warn, 'border-opacity': 1 } },
     { selector: 'edge.stub[in_service = 0]', style: { 'line-style': 'dashed', 'line-dash-pattern': [3, 2], 'line-color': t.muted, width: 0.8 } },
     {
       selector: 'edge.branch[in_service = 0]',
@@ -162,12 +219,15 @@ function stylesheet(t: ChartTheme): StylesheetJson {
         'min-zoomed-font-size': 5,
       },
     },
+    // the transformer symbol sits on the midpoint: lift the "off" marker clear of it
+    { selector: 'edge.branch.xfmr[in_service = 0][leg = 0]', style: { 'text-margin-y': -19 } },
     // edited and out of service: a thin amber underlay that keeps the dashes visible, amber marker border
     {
       selector: 'edge.branch.changed[in_service = 0]',
       style: { 'underlay-padding': 1.5, 'underlay-opacity': 0.4, 'text-border-color': t.warn } as never,
     },
     { selector: 'node:selected', style: { 'border-color': t.accent, 'border-width': 3 } },
+    { selector: 'node.sym:selected', style: { 'border-width': 2, 'border-opacity': 1 } },
   ]
 }
 
@@ -238,6 +298,11 @@ export function NetworkDiagram({
   )
   const levels = useMemo(() => voltageLevels(topology), [topology])
   const branchTypes = useMemo(() => new Map(topology.branches.map((b) => [b.id, b.type])), [topology])
+  /** Latest theme and voltage levels, for symbol images redrawn from Cytoscape event handlers. */
+  const paintRef = useRef({ theme, levels })
+  useEffect(() => {
+    paintRef.current = { theme, levels }
+  }, [theme, levels])
 
   // create / destroy instance per element set + layout
   useEffect(() => {
@@ -277,7 +342,39 @@ export function NetworkDiagram({
       else el.removeAttribute('title')
     })
     cy.on('mouseout', 'node, edge', () => el.removeAttribute('title'))
-    cy.layout(layoutOptions(layout, topology, elements.length)).run()
+    // 2-winding transformer symbols ride on their edge's midpoint, rotated to the edge angle; they are not laid out
+    const placeSymbols = (edges = cy.edges('.xfmr')) => {
+      const { theme: t, levels: lv } = paintRef.current
+      cy.batch(() => {
+        edges.forEach((e) => {
+          const sym = cy.getElementById(String(e.data('xf')))
+          if (sym.empty()) return
+          const a = e.source().position()
+          const b = e.target().position()
+          sym.position({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 })
+          const angle = quantisedAngle(b.x - a.x, b.y - a.y)
+          if (sym.data('angle') !== angle) {
+            sym.data('angle', angle)
+            paintSymbol(sym as unknown as NodeSingular, t, lv)
+          }
+        })
+      })
+    }
+    cy.on('position', 'node[kind = "node"]', (evt) => placeSymbols(evt.target.connectedEdges('.xfmr')))
+    // symbols keep a legible rendered size across zoom levels
+    let scale = 0
+    const sizeSymbols = () => {
+      const f = symbolScale(cy.zoom())
+      if (f === scale) return
+      scale = f
+      cy.batch(() => cy.nodes('.sym').forEach((n) => void n.data('sz', (SYMBOL_SIZE[n.data('sym')] ?? 20) * f)))
+    }
+    cy.on('zoom', sizeSymbols)
+    const lay = cy.elements().not('.xfmr-symbol').layout(layoutOptions(layout, topology, elements.length))
+    lay.on('layoutstop', () => placeSymbols())
+    lay.run()
+    placeSymbols()
+    sizeSymbols()
     const ro = new ResizeObserver(() => cy.resize())
     ro.observe(el)
     return () => {
@@ -304,6 +401,7 @@ export function NetworkDiagram({
         e.data('color', overlay?.branchColor ? overlay.branchColor(id) : branchTypeColor(type, theme))
         e.data('width', overlay?.branchWidth ? overlay.branchWidth(id) : type === 'line' || type === 'asym_line' ? 1.8 : 2.6)
       })
+      cy.nodes('.sym').forEach((n) => paintSymbol(n, theme, levels))
     })
     // overlayKey intentionally retriggers this effect
   }, [theme, overlay, overlayKey, levels, branchTypes, elements, layout])
@@ -336,7 +434,7 @@ export function NetworkDiagram({
     const cy = cyRef.current
     if (!cy) return
     cy.batch(() => {
-      cy.elements('.branch, .hub').forEach((e) => {
+      cy.elements('.branch, .hub, .xfmr-symbol').forEach((e) => {
         const off = status.branchOff.has(Number(e.data('eid')))
         e.data({ in_service: off ? 0 : 1, tip: off ? OOS_TIP : '' })
       })
@@ -349,6 +447,8 @@ export function NetworkDiagram({
         const on = status.energised.has(Number(n.data('eid')))
         n.data({ energised: on ? 1 : 0, tip: on ? '' : ISLANDED_TIP })
       })
+      const { theme: t, levels: lv } = paintRef.current
+      cy.nodes('.sym').forEach((n) => paintSymbol(n, t, lv))
     })
   }, [status, elements, layout])
 
@@ -359,8 +459,8 @@ export function NetworkDiagram({
     cy.elements().unselect()
     if (!selected) return
     const id = cyId(selected.kind, selected.id)
-    const target =
-      selected.kind === 'branch' ? cy.edges(`[kind = "branch"][eid = ${selected.id}]`) : cy.getElementById(id)
+    // a branch selects its edge(s) and, for a 2-winding transformer, its symbol
+    const target = selected.kind === 'branch' ? cy.$(`[kind = "branch"][eid = ${selected.id}]`) : cy.getElementById(id)
     target.select()
   }, [selected, elements, layout])
 

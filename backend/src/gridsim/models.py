@@ -96,6 +96,9 @@ class TopologyAppliance(BaseModel):
     node: int
     p_specified: float | None = None
     q_specified: float | None = None
+    b1: float | None = Field(
+        None, description="Shunt positive-sequence susceptance (S); >0 capacitive, <0 inductive"
+    )
     in_service: bool = True
     params: ParamValues = Field(
         default_factory=dict, description="File values of the editable fields (SI units)"

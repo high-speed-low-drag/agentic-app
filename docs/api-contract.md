@@ -52,6 +52,8 @@ one "in service" toggle that sets both.
 Branch `type` is one of `line | link | transformer | generic_branch | three_winding_transformer` (3-winding: see `nodes` field below).
 For `three_winding_transformer` the branch has `from_node`=node_1, `to_node`=node_2 and an extra `node_3`. Appliance `type` covers
 `sym_load | sym_gen | asym_load | asym_gen | shunt`. Only `sym_load` and `sym_gen` are profile targets in v0.
+Shunt appliances also carry `b1`, the positive-sequence susceptance in S (> 0 capacitive, < 0 inductive; `null` for other
+appliance types), which the diagram uses to draw a capacitor or reactor symbol.
 Branches, appliances and sources carry `params`: the network file values (SI units) of that component's editable fields
 (empty when it has none). A field the file does not set (PGM NaN, e.g. `sn` of IEEE 14's generic branches) is `null`;
 a case may still override it.

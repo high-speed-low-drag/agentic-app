@@ -161,6 +161,7 @@ def build_topology(
         if arr is None:
             continue
         has_pq = "p_specified" in arr.dtype.names
+        has_b1 = "b1" in arr.dtype.names
         for r in arr:
             appliances.append(
                 TopologyAppliance(
@@ -170,6 +171,7 @@ def build_topology(
                     node=int(r["node"]),
                     p_specified=_float_or_none(r["p_specified"]) if has_pq else None,
                     q_specified=_float_or_none(r["q_specified"]) if has_pq else None,
+                    b1=_float_or_none(r["b1"]) if has_b1 else None,
                     in_service=bool(r["status"] != 0),
                     params=_params(comp, r),
                 )
