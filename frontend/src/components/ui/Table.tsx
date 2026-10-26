@@ -21,6 +21,9 @@ export interface SortState {
   dir: 'asc' | 'desc'
 }
 
+/** Clicks on these inside a row (inputs, buttons, links) don't count as a row click. */
+const INTERACTIVE = 'input, button, select, textarea, a, label, [role="button"], [contenteditable="true"]'
+
 /** Simple data table with optional client-side sorting and row click. */
 export function Table<T>({
   columns,
@@ -131,7 +134,16 @@ export function Table<T>({
                 <tr
                   key={k}
                   data-testid="table-row"
-                  onClick={onRowClick ? () => onRowClick(r) : undefined}
+                  data-row-key={k}
+                  data-selected={selectedKey === k || undefined}
+                  onClick={
+                    onRowClick
+                      ? (e) => {
+                          if ((e.target as Element).closest?.(INTERACTIVE)) return
+                          onRowClick(r)
+                        }
+                      : undefined
+                  }
                   className={cn(
                     'border-b border-border last:border-b-0',
                     onRowClick && 'cursor-pointer hover:bg-surface-2',

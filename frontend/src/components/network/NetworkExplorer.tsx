@@ -6,11 +6,11 @@ import { Checkbox, Select } from '../ui'
 import { ElementDetails } from './ElementDetails'
 import type { ElementTableEditing } from './ElementTable'
 import { ElementTable } from './ElementTable'
-import type { ElementRef } from './graph'
 import { TopologyLegend } from './Legend'
 import type { DiagramLayout } from './NetworkDiagram'
 import { NetworkDiagram } from './NetworkDiagram'
 import { changedElements } from './overrides'
+import { useNetworkSelection } from './useNetworkSelection'
 
 /**
  * Diagram + details panel + searchable element table, sharing one selection.
@@ -21,7 +21,7 @@ export function NetworkExplorer({ topology, editing }: { topology: NetworkTopolo
   const theme = useChartTheme()
   const overrides = editing?.overrides
   const changed = useMemo(() => changedElements(overrides ?? []), [overrides])
-  const [selected, setSelected] = useState<ElementRef | null>(null)
+  const { selected, focusElement, revealInTable, backToDiagram, tableRef, diagramRef } = useNetworkSelection()
   const [layout, setLayout] = useState<DiagramLayout>('auto')
   const [showAppliances, setShowAppliances] = useState(topology.appliances.length <= 400)
 
@@ -45,9 +45,10 @@ export function NetworkExplorer({ topology, editing }: { topology: NetworkTopolo
       </div>
       <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
         <NetworkDiagram
+          ref={diagramRef}
           topology={topology}
           selected={selected}
-          onSelect={setSelected}
+          onSelect={(r) => focusElement(r, 'diagram')}
           layout={layout}
           showAppliances={showAppliances}
           height={520}
@@ -56,7 +57,14 @@ export function NetworkExplorer({ topology, editing }: { topology: NetworkTopolo
         />
         <div className="rounded-md border border-border bg-surface p-3">
           {selected ? (
-            <ElementDetails topology={topology} selected={selected} onSelect={setSelected} onClose={() => setSelected(null)} />
+            <ElementDetails
+              topology={topology}
+              selected={selected}
+              onSelect={(r) => focusElement(r, 'details')}
+              onClose={() => focusElement(null, 'details')}
+              onShowInTable={revealInTable}
+              showInTableLabel={editing ? 'Edit in table' : 'Show in table'}
+            />
           ) : (
             <div className="flex h-full min-h-32 flex-col items-center justify-center gap-2 text-center text-xs text-fg-muted">
               <MousePointerClick size={18} />
@@ -65,7 +73,14 @@ export function NetworkExplorer({ topology, editing }: { topology: NetworkTopolo
           )}
         </div>
       </div>
-      <ElementTable topology={topology} selected={selected} onSelect={setSelected} editing={editing} />
+      <ElementTable
+        ref={tableRef}
+        topology={topology}
+        selected={selected}
+        onSelect={(r) => focusElement(r, 'table')}
+        onBackToDiagram={backToDiagram}
+        editing={editing}
+      />
     </div>
   )
 }

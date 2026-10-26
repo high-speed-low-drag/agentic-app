@@ -1,33 +1,26 @@
-import { RotateCcw, Search } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import type { EditableFields, NetworkOverride, NetworkTopology, ParamValues } from '../../api/schema'
-import { fmtKv, fmtPowerW, fmtVar } from '../../lib/format'
+import { ArrowUpToLine, RotateCcw, Search, X } from 'lucide-react'
+import type { Ref } from 'react'
+import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
+import type { EditableFields, NetworkOverride, NetworkTopology } from '../../api/schema'
 import type { Column } from '../ui'
 import { Badge, Button, Checkbox, ConfirmDialog, Table, Tabs, TextInput } from '../ui'
 import { BoolCell, NumberCell } from './EditableCell'
 import type { ElementKind, ElementRef } from './graph'
-import { BRANCH_TYPE_LABELS } from './graph'
 import type { EditableColumn } from './overrides'
 import { changeCounts, changedCells, changedElements, editableColumns, findOverride, revertColumn, setOverride, tabComponents } from './overrides'
-
-type Row = {
-  key: number
-  id: number
-  name: string
-  type: string
-  /** PGM component (sym_load, line, source, ...) */
-  component: string
-  params: ParamValues
-  a: string
-  b: string
-  c: string
-}
+import type { TableRow as Row } from './selection'
+import { filtersToClear, matchesSearch, prefersReducedMotion, tableRows } from './selection'
 
 /** Editing support: pass all three to make the editable fields' cells editable. */
 export interface ElementTableEditing {
   fields: EditableFields
   overrides: NetworkOverride[]
   onChange: (next: NetworkOverride[]) => void
+}
+
+/** Imperative handle: jump to an element's row (switch tab, clear hiding filters, scroll, flash). */
+export interface ElementTableHandle {
+  reveal: (ref: ElementRef) => void
 }
 
 const REVERT_CONFIRM_THRESHOLD = 5
@@ -41,17 +34,28 @@ export function ElementTable({
   onSelect,
   maxHeight = 360,
   editing,
+  onBackToDiagram,
+  ref,
 }: {
   topology: NetworkTopology
   selected?: ElementRef | null
   onSelect?: (r: ElementRef) => void
   maxHeight?: number
   editing?: ElementTableEditing
+  /** Shows a "Back to diagram" button in the selected row. */
+  onBackToDiagram?: () => void
+  ref?: Ref<ElementTableHandle>
 }) {
   const [tab, setTab] = useState<ElementKind>('node')
   const [q, setQ] = useState('')
   const [changedOnly, setChangedOnly] = useState(false)
   const [confirmRevert, setConfirmRevert] = useState(false)
+  /** "Filters cleared to show X" after a reveal had to clear the search or "Changed only". */
+  const [note, setNote] = useState<string | null>(null)
+  /** Bumped per reveal so revealing the same row again still re-renders (and scrolls). */
+  const [, setRevealCount] = useState(0)
+  const pendingReveal = useRef<number | null>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
   const nodeName = useMemo(() => new Map(topology.nodes.map((n) => [n.id, n.name])), [topology])
 
   const overrides = useMemo(() => editing?.overrides ?? [], [editing?.overrides])
@@ -63,58 +67,81 @@ export function ElementTable({
     () => (editing ? editableColumns(editing.fields, tabComponents(topology, tab)) : []),
     [editing, topology, tab],
   )
+  const selectedId = selected?.kind === tab ? selected.id : null
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      reveal: (el: ElementRef) => {
+        const row = tableRows(topology, el.kind, nodeName).find((r) => r.id === el.id)
+        setTab(el.kind)
+        const clear = filtersToClear(el, row, { q, changedOnly }, changedEls)
+        if (clear?.q) setQ('')
+        if (clear?.changedOnly) setChangedOnly(false)
+        setNote(row && (clear?.q || clear?.changedOnly) ? `Filters cleared to show ${row.name}` : null)
+        pendingReveal.current = row ? row.id : null
+        setRevealCount((n) => n + 1)
+      },
+    }),
+    [topology, nodeName, q, changedOnly, changedEls],
+  )
+
+  // After a reveal renders: scroll the row into view (table and page, only as much as needed) and flash it once.
+  useEffect(() => {
+    const id = pendingReveal.current
+    if (id === null) return
+    const tr = wrapRef.current?.querySelector<HTMLElement>(`tr[data-row-key="${id}"]`)
+    if (!tr) return
+    pendingReveal.current = null
+    const reduced = prefersReducedMotion()
+    // inline 'start' also resets the table's horizontal scroll; scroll-pt keeps the row clear of the sticky header
+    tr.scrollIntoView({ block: 'nearest', inline: 'start', behavior: reduced ? 'auto' : 'smooth' })
+    tr.classList.remove('row-flash')
+    void tr.offsetWidth // restart the animation
+    tr.classList.add('row-flash')
+    tr.addEventListener('animationend', () => tr.classList.remove('row-flash'), { once: true })
+  })
 
   const { rows, cols } = useMemo(() => {
     const text = (s: string) => <span className="text-fg-2">{s}</span>
     const editable = edCols.length > 0
-    let rows: Row[]
-    let heads: [string, string, string]
-    if (tab === 'node') {
-      rows = topology.nodes.map((n) => ({ key: n.id, id: n.id, name: n.name, type: 'node', component: 'node', params: {}, a: fmtKv(n.u_rated), b: '', c: '' }))
-      heads = ['Rated voltage', '', '']
-    } else if (tab === 'branch') {
-      rows = topology.branches.map((b) => ({
-        key: b.id,
-        id: b.id,
-        name: b.name,
-        type: BRANCH_TYPE_LABELS[b.type] ?? b.type,
-        component: b.type,
-        params: b.params ?? {},
-        a: nodeName.get(b.from_node) ?? String(b.from_node),
-        b: nodeName.get(b.to_node) ?? String(b.to_node),
-        c: b.in_service ? '' : 'out of service',
-      }))
-      heads = ['From', 'To', editable ? '' : 'Status']
-    } else if (tab === 'appliance') {
-      rows = topology.appliances.map((a) => ({
-        key: a.id,
-        id: a.id,
-        name: a.name,
-        type: a.type,
-        component: a.type,
-        params: a.params ?? {},
-        a: nodeName.get(a.node) ?? String(a.node),
-        b: fmtPowerW(a.p_specified),
-        c: fmtVar(a.q_specified),
-      }))
-      heads = editable ? ['Node', '', ''] : ['Node', 'P', 'Q']
-    } else {
-      rows = topology.sources.map((s) => ({
-        key: s.id,
-        id: s.id,
-        name: s.name,
-        type: 'source',
-        component: 'source',
-        params: s.params ?? {},
-        a: nodeName.get(s.node) ?? String(s.node),
-        b: `${s.u_ref.toFixed(3)} pu`,
-        c: '',
-      }))
-      heads = editable ? ['Node', '', ''] : ['Node', 'u_ref', '']
-    }
+    const rows = tableRows(topology, tab, nodeName)
+    const heads: [string, string, string] =
+      tab === 'node'
+        ? ['Rated voltage', '', '']
+        : tab === 'branch'
+          ? ['From', 'To', editable ? '' : 'Status']
+          : tab === 'appliance'
+            ? editable
+              ? ['Node', '', '']
+              : ['Node', 'P', 'Q']
+            : editable
+              ? ['Node', '', '']
+              : ['Node', 'u_ref', '']
     const cols: Column<Row>[] = [
       { key: 'id', header: 'ID', cell: (r) => <span className="tabular text-fg-muted">{r.id}</span>, sortValue: (r) => r.id, width: 70 },
-      { key: 'name', header: 'Name', cell: (r) => <span className="font-medium">{r.name}</span>, sortValue: (r) => r.name },
+      {
+        key: 'name',
+        header: 'Name',
+        sortValue: (r) => r.name,
+        cell: (r) => (
+          <span className="inline-flex items-center gap-2">
+            <span className="font-medium">{r.name}</span>
+            {onBackToDiagram && r.id === selectedId && (
+              <button
+                type="button"
+                data-testid="back-to-diagram"
+                onClick={onBackToDiagram}
+                title="Scroll back to the diagram"
+                className="inline-flex items-center gap-0.5 rounded px-1 text-[11px] font-medium text-accent hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                <ArrowUpToLine size={11} />
+                Back to diagram
+              </button>
+            )}
+          </span>
+        ),
+      },
     ]
     if (tab !== 'node' && tab !== 'source')
       cols.push({ key: 'type', header: 'Type', cell: (r) => <Badge>{r.type}</Badge>, sortValue: (r) => r.type })
@@ -177,14 +204,12 @@ export function ElementTable({
       })
     }
     return { rows, cols }
-  }, [tab, topology, nodeName, edCols, cells, overrides, onOverrides])
+  }, [tab, topology, nodeName, edCols, cells, overrides, onOverrides, onBackToDiagram, selectedId])
 
   const filtered = useMemo(() => {
-    const s = q.trim().toLowerCase()
     let out = rows
     if (changedOnly) out = out.filter((r) => changedEls.has(`${tab}:${r.id}`))
-    if (!s) return out
-    return out.filter((r) => r.name.toLowerCase().includes(s) || String(r.id) === s || r.type.toLowerCase().includes(s) || r.a.toLowerCase().includes(s))
+    return q.trim() ? out.filter((r) => matchesSearch(r, q)) : out
   }, [rows, q, changedOnly, changedEls, tab])
 
   const tabBadge = (k: ElementKind) =>
@@ -195,7 +220,7 @@ export function ElementTable({
     ) : undefined
 
   return (
-    <div data-testid="element-table" className="flex min-w-0 flex-col">
+    <div ref={wrapRef} data-testid="element-table" data-tab={tab} className="flex min-w-0 flex-col">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <Tabs
           size="sm"
@@ -219,7 +244,14 @@ export function ElementTable({
               >
                 {plural(counts.total)}
               </span>
-              <Checkbox checked={changedOnly} onChange={setChangedOnly} label={<span className="text-xs text-fg-2">Changed only</span>} />
+              <Checkbox
+                checked={changedOnly}
+                onChange={(v) => {
+                  setChangedOnly(v)
+                  setNote(null)
+                }}
+                label={<span className="text-xs text-fg-2">Changed only</span>}
+              />
               <Button
                 size="sm"
                 icon={<RotateCcw size={13} />}
@@ -232,19 +264,40 @@ export function ElementTable({
           )}
           <div className="relative w-56">
             <Search size={13} className="absolute top-1/2 left-2.5 -translate-y-1/2 text-fg-muted" />
-            <TextInput value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or id…" className="h-8 pl-8 text-xs" />
+            <TextInput
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value)
+                setNote(null)
+              }}
+              placeholder="Search name or id…"
+              className="h-8 pl-8 text-xs"
+            />
           </div>
         </div>
       </div>
+      {note && (
+        <div
+          role="status"
+          data-testid="filters-cleared-note"
+          className="mb-1.5 flex items-center gap-2 self-start rounded-md bg-accent-soft px-2.5 py-1 text-xs text-fg-2"
+        >
+          {note}
+          <button type="button" className="text-fg-muted hover:text-fg" onClick={() => setNote(null)} aria-label="Dismiss note">
+            <X size={12} />
+          </button>
+        </div>
+      )}
       <div className="rounded-md border border-border">
         <Table
           dense
+          className="scroll-pt-8"
           columns={cols}
           rows={filtered}
           rowKey={(r) => r.key}
           maxHeight={maxHeight}
           onRowClick={onSelect ? (r) => onSelect({ kind: tab, id: r.id }) : undefined}
-          selectedKey={selected?.kind === tab ? selected.id : null}
+          selectedKey={selectedId}
           empty={changedOnly ? 'No changed elements in this tab' : q ? 'No elements match your search' : 'No elements'}
         />
       </div>

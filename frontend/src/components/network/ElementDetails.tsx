@@ -1,8 +1,8 @@
-import { X } from 'lucide-react'
+import { TableProperties, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { NetworkTopology } from '../../api/schema'
 import { fmtKv, fmtPowerW, fmtPu, fmtVar } from '../../lib/format'
-import { Badge } from '../ui'
+import { Badge, Button } from '../ui'
 import type { ElementRef } from './graph'
 import { BRANCH_TYPE_LABELS } from './graph'
 
@@ -31,12 +31,17 @@ export function ElementDetails({
   onClose,
   onSelect,
   extra,
+  onShowInTable,
+  showInTableLabel = 'Show in table',
 }: {
   topology: NetworkTopology
   selected: ElementRef
   onClose?: () => void
   onSelect?: (r: ElementRef) => void
   extra?: ReactNode
+  /** Adds a button that jumps to this element's row in the element table. */
+  onShowInTable?: (r: ElementRef) => void
+  showInTableLabel?: string
 }) {
   const link = (id: number) => <NodeLink topology={topology} id={id} onSelect={onSelect} />
 
@@ -138,6 +143,11 @@ export function ElementDetails({
         {rows}
         {extra}
       </div>
+      {onShowInTable && (
+        <Button size="sm" className="self-start" data-testid="show-in-table" icon={<TableProperties size={13} />} onClick={() => onShowInTable(selected)}>
+          {showInTableLabel}
+        </Button>
+      )}
     </div>
   )
 }

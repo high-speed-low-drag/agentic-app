@@ -201,3 +201,24 @@ body {
     background-position: 24px 0;
   }
 }
+
+/* One-off flash of a table row revealed from the diagram (T7); the selected highlight stays after. */
+@keyframes row-flash {
+  0%,
+  35% {
+    background-color: color-mix(in srgb, var(--c-accent) 35%, transparent);
+  }
+  100% {
+    background-color: var(--c-accent-soft);
+  }
+}
+
+.row-flash {
+  animation: row-flash 1s ease-out 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-flash {
+    animation: none;
+  }
+}

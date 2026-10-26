@@ -2,14 +2,30 @@ import type { Core, LayoutOptions, StylesheetJson } from 'cytoscape'
 import cytoscape from 'cytoscape'
 import fcose from 'cytoscape-fcose'
 import { Maximize2, Minus, Plus } from 'lucide-react'
-import type { ReactNode } from 'react'
-import { useEffect, useMemo, useRef } from 'react'
+import type { ReactNode, Ref } from 'react'
+import { useEffect, useImperativeHandle, useMemo, useRef } from 'react'
 import type { NetworkTopology } from '../../api/schema'
 import { cn } from '../../lib/utils'
 import type { ChartTheme } from '../charts/theme'
 import { useChartTheme } from '../charts/theme'
 import type { ElementRef } from './graph'
 import { branchTypeColor, buildElements, cyId, parseCyId, rootNodeIds, voltageColor, voltageLevels } from './graph'
+import { focusZoom, prefersReducedMotion } from './selection'
+
+declare global {
+  interface Window {
+    /** Dev/test only: the most recently created diagram's Cytoscape instance (used by Playwright). */
+    __gridsimCy?: Core
+  }
+}
+
+/** Imperative handle for selection side effects driven from outside the diagram. */
+export interface NetworkDiagramHandle {
+  /** Animate to centre an element, if the diagram is at least partly on screen. Returns whether it did. */
+  centerOn: (ref: ElementRef) => boolean
+  /** Scroll the page so the diagram is visible. */
+  scrollIntoView: () => void
+}
 
 let registered = false
 function ensureRegistered() {
@@ -45,6 +61,7 @@ export interface NetworkDiagramProps {
   legend?: ReactNode
   /** Elements to mark as changed (amber ring/halo), as `kind:id` keys, e.g. "branch:47". */
   changed?: Set<string>
+  ref?: Ref<NetworkDiagramHandle>
 }
 
 function stylesheet(t: ChartTheme): StylesheetJson {
@@ -155,10 +172,14 @@ export function NetworkDiagram({
   className,
   legend,
   changed,
+  ref: handleRef,
 }: NetworkDiagramProps) {
   const theme = useChartTheme()
   const ref = useRef<HTMLDivElement>(null)
+  const outerRef = useRef<HTMLDivElement>(null)
   const cyRef = useRef<Core | null>(null)
+  /** Whether the diagram is at least partly in the viewport (IntersectionObserver). */
+  const visibleRef = useRef(true)
   const onSelectRef = useRef(onSelect)
   useEffect(() => {
     onSelectRef.current = onSelect
@@ -186,6 +207,7 @@ export function NetworkDiagram({
       selectionType: 'single',
     })
     cyRef.current = cy
+    if (import.meta.env.DEV) window.__gridsimCy = cy
     cy.on('tap', (evt) => {
       if (evt.target === cy) {
         onSelectRef.current?.(null)
@@ -208,6 +230,7 @@ export function NetworkDiagram({
       ro.disconnect()
       cy.destroy()
       cyRef.current = null
+      if (import.meta.env.DEV && window.__gridsimCy === cy) delete window.__gridsimCy
     }
   }, [elements, layout, topology])
 
@@ -258,6 +281,37 @@ export function NetworkDiagram({
     target.select()
   }, [selected, elements, layout])
 
+  useEffect(() => {
+    const el = outerRef.current
+    if (!el || typeof IntersectionObserver === 'undefined') return
+    const io = new IntersectionObserver(([entry]) => {
+      visibleRef.current = entry.isIntersecting
+    })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+
+  useImperativeHandle(
+    handleRef,
+    () => ({
+      centerOn: (sel: ElementRef) => {
+        const cy = cyRef.current
+        if (!cy || !visibleRef.current) return false
+        const target = sel.kind === 'branch' ? cy.$(`[kind = "branch"][eid = ${sel.id}], [kind = "hub"][eid = ${sel.id}]`) : cy.getElementById(cyId(sel.kind, sel.id))
+        if (target.empty()) return false
+        const bb = target.boundingBox()
+        const level = focusZoom(cy.zoom(), cy.maxZoom())
+        const pan = { x: cy.width() / 2 - level * (bb.x1 + bb.w / 2), y: cy.height() / 2 - level * (bb.y1 + bb.h / 2) }
+        cy.stop()
+        if (prefersReducedMotion()) cy.viewport({ zoom: level, pan })
+        else cy.animate({ zoom: level, pan }, { duration: 350, easing: 'ease-in-out-cubic' })
+        return true
+      },
+      scrollIntoView: () => outerRef.current?.scrollIntoView({ block: 'nearest', behavior: prefersReducedMotion() ? 'auto' : 'smooth' }),
+    }),
+    [],
+  )
+
   const zoom = (f: number) => {
     const cy = cyRef.current
     if (!cy) return
@@ -265,7 +319,12 @@ export function NetworkDiagram({
   }
 
   return (
-    <div data-testid="network-diagram" data-changed-count={changed?.size ?? 0} className={cn('relative overflow-hidden rounded-md border border-border bg-surface-2', className)} style={{ height }}>
+    <div
+      ref={outerRef}
+      data-testid="network-diagram"
+      data-changed-count={changed?.size ?? 0}
+      data-selected={selected ? `${selected.kind}:${selected.id}` : ''}
+      className={cn('relative overflow-hidden rounded-md border border-border bg-surface-2', className)} style={{ height }}>
       <div ref={ref} className="absolute inset-0 h-full w-full" />
       <div className="absolute top-2 right-2 flex flex-col overflow-hidden rounded-md border border-border bg-surface shadow-sm">
         <button className="p-1.5 text-fg-2 hover:bg-surface-3" onClick={() => zoom(1.25)} aria-label="Zoom in" title="Zoom in">
