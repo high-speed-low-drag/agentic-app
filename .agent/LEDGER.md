@@ -77,3 +77,4 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 - T19 done: make check (59 pytest, 94 vitest) + make e2e (21/21) verified. Neutral vs not-energised fix briefed, awaiting go-ahead.
 - T20 approved by user; sub-agent started.
 - T20 done: make check (59 pytest, 95 vitest) + make e2e (22/22) verified; screenshots reviewed. PV investigation: demo case applies PV in scale mode on loads (multiplies demand); PV-scale-on-loads warning offered, awaiting decision.
+- Issue #5 raised (deferred): warn on PV scale mode on loads.
