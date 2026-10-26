@@ -33,8 +33,8 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 | T8 | Diagram clicks select quietly; only Edit in table jumps | done | T7 | frontend/ | `make check && make e2e` |
 | T9 | Bug: show override-applied equipment values in profiles list and details panel | done | T8 | frontend/ | `make check && make e2e` |
 | T10 | Generic branches editable (sn, R, X, in service) + results snapshot uses frozen overrides | done | T9 | backend/, frontend/ | `make check && make e2e` |
-| T11 | Snapshot playback 8×/16×, proportional speeds, prefetch | in_progress | – | frontend/ | `make check && make e2e` |
-| T12 | Strong out-of-service cue (branches, appliances, islanded nodes) in both diagrams | todo | T11 | frontend/ | `make check && make e2e` |
+| T11 | Snapshot playback 8×/16×, proportional speeds, prefetch | done | – | frontend/ | `make check && make e2e` |
+| T12 | Strong out-of-service cue (branches, appliances, islanded nodes) in both diagrams | in_progress | T11 | frontend/ | `make check && make e2e` |
 
 ## Log
 - 2026-10-26: profile scale factor shipped (d1d031c). T6 approved by user; sub-agent started.
@@ -50,3 +50,4 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 - T10 done: make check (58 pytest, 40 vitest) + make e2e (10/10) verified by orchestrator. Issue #1 partly addressed (ratings now settable).
 - T11 approved by user; sub-agent started.
 - T12 approved by user; queued until T11 is committed (both touch NetworkSnapshotView.tsx).
+- T11 done: make check (58 pytest, 44 vitest) + make e2e (11/11) verified; 16x measured ~24.5 steps/s. T12 sub-agent started.

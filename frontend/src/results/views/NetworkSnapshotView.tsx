@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
-import { useSnapshot } from '../../api/hooks'
+import { useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { snapshotQuery, useSnapshot } from '../../api/hooks'
 import { useChartTheme } from '../../components/charts/theme'
 import type { DiagramOverlay, ElementRef } from '../../components/network'
 import { ElementDetails, GradientLegend, loadingColor, NetworkDiagram, voltageDivergingColor } from '../../components/network'
@@ -11,12 +12,10 @@ import { toNaive } from '../../lib/time'
 import { timestepTime } from '../timestamps'
 import type { ResultViewProps } from '../types'
 import { useRunContext } from '../useRunContext'
+import { BASE_STEP_MS, DEFAULT_MULTIPLIER, nextFrameDelay, playbackSpeeds } from './playback'
 
-const SPEEDS = [
-  { value: 600, label: '1×' },
-  { value: 250, label: '2×' },
-  { value: 80, label: '4×' },
-]
+const SPEEDS = playbackSpeeds()
+const SPEED_OPTIONS = SPEEDS.map(({ value, label }) => ({ value, label }))
 
 /** Network diagram coloured by the results at one timestep, with a time slider and playback. */
 export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
@@ -32,17 +31,30 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
     return Number.isFinite(idx) ? Math.max(0, Math.min(n - 1, idx)) : 0
   })
   const [playing, setPlaying] = useState(false)
-  const [speed, setSpeed] = useState(250)
+  const [speed, setSpeed] = useState(BASE_STEP_MS / DEFAULT_MULTIPLIER)
   const [selected, setSelected] = useState<ElementRef | null>(null)
   const snap = useSnapshot(runId, t)
+  const queryClient = useQueryClient()
+  const prefetch = SPEEDS.find((s) => s.value === speed)?.prefetch ?? 2
 
-  // playback: advance only once the current snapshot has loaded, so frames are not skipped
-  const ready = !snap.isFetching
+  // playback never skips a frame: advance only once the current timestep's own snapshot is shown, and aim
+  // for `speed` ms after it was shown, so (pre)fetch time does not add to the interval for cached frames
+  const ready = !snap.isFetching && !snap.isPlaceholderData
+  const shownAt = useRef(0)
+  useEffect(() => {
+    if (ready) shownAt.current = performance.now()
+  }, [ready, t])
   useEffect(() => {
     if (!playing || !ready) return
-    const h = setTimeout(() => setT((x) => (x + 1 >= n ? 0 : x + 1)), speed)
+    const h = setTimeout(() => setT((x) => (x + 1 >= n ? 0 : x + 1)), nextFrameDelay(speed, shownAt.current, performance.now()))
     return () => clearTimeout(h)
   }, [playing, ready, speed, n, t])
+
+  // while playing, keep the next few snapshots in flight (wrapping at the end of the run)
+  useEffect(() => {
+    if (!playing || n <= 1) return
+    for (let i = 1; i <= Math.min(prefetch, n - 1); i++) void queryClient.prefetchQuery(snapshotQuery(runId, (t + i) % n))
+  }, [playing, prefetch, queryClient, runId, n, t])
 
   const overlay = useMemo<DiagramOverlay | undefined>(() => {
     const d = snap.data
@@ -102,11 +114,11 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
         />
         <div className="w-44 text-right text-xs">
           <div className="font-medium text-fg tabular">{fmtDateTime(snap.data?.timestamp ?? toNaive(new Date(timestepTime(summary, t))))}</div>
-          <div className="text-fg-muted tabular">
+          <div className="text-fg-muted tabular" data-testid="snapshot-step">
             step {(t + 1).toLocaleString()} / {n.toLocaleString()} {snap.isFetching && <Spinner size={10} className="inline" />}
           </div>
         </div>
-        <Segmented size="sm" value={speed} onChange={setSpeed} options={SPEEDS} />
+        <Segmented size="sm" className="shrink-0" value={speed} onChange={setSpeed} options={SPEED_OPTIONS} />
       </div>
       {snap.error && <ErrorState error={snap.error} title="Could not load snapshot" />}
       <div className="grid gap-3 lg:grid-cols-[1fr_260px]">

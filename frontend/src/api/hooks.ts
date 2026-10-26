@@ -1,6 +1,7 @@
 /** react-query hooks around ./client.ts. */
 import {
   keepPreviousData,
+  queryOptions,
   useMutation,
   useQuery,
   useQueryClient,
@@ -309,11 +310,18 @@ export function useHeatmap(runId: string, component: ResultComponent, field: str
   })
 }
 
-export function useSnapshot(runId: string, t: number) {
-  return useQuery({
+/**
+ * Query options for one snapshot. Results of a finished run never change, so snapshots never go stale;
+ * prefetches (see NetworkSnapshotView playback) share these options so their data is reused as-is.
+ */
+export function snapshotQuery(runId: string, t: number) {
+  return queryOptions({
     queryKey: qk.snapshot(runId, t),
     queryFn: () => api.getSnapshot(runId, t),
     staleTime: Infinity,
-    placeholderData: keepPreviousData,
   })
+}
+
+export function useSnapshot(runId: string, t: number) {
+  return useQuery({ ...snapshotQuery(runId, t), placeholderData: keepPreviousData })
 }
