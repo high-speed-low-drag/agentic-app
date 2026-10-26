@@ -73,20 +73,21 @@ export function buildElements(topo: NetworkTopology, opts: BuildOptions): Elemen
   for (const n of topo.nodes) {
     els.push({
       group: 'nodes',
-      data: { id: cyId('node', n.id), label: n.name, kind: 'node', eid: n.id, u_rated: n.u_rated, sub: kv(n.u_rated) },
+      data: { id: cyId('node', n.id), label: n.name, kind: 'node', eid: n.id, u_rated: n.u_rated, sub: kv(n.u_rated), energised: 1 },
     })
   }
   for (const b of topo.branches) {
     if (!nodeIds.has(b.from_node) || !nodeIds.has(b.to_node)) continue
-    const base = { kind: 'branch', eid: b.id, btype: b.type, label: b.name, in_service: b.in_service ? 1 : 0 }
+    // `leg` 0 carries the "off" marker when out of service (one per branch, also for 3-winding stars)
+    const base = { kind: 'branch', eid: b.id, btype: b.type, label: b.name, in_service: b.in_service ? 1 : 0, leg: 0 }
     if (b.type === 'three_winding_transformer' && b.node_3 != null && nodeIds.has(b.node_3)) {
       // star representation: hidden hub node + three legs, all mapping to the same branch
       const hub = `t${b.id}`
-      els.push({ group: 'nodes', data: { id: hub, kind: 'hub', eid: b.id, label: '' }, classes: 'hub' })
+      els.push({ group: 'nodes', data: { id: hub, kind: 'hub', eid: b.id, label: '', in_service: base.in_service }, classes: 'hub' })
       ;[b.from_node, b.to_node, b.node_3].forEach((nid, i) => {
         els.push({
           group: 'edges',
-          data: { ...base, id: `${cyId('branch', b.id)}_${i}`, source: hub, target: cyId('node', nid), label: i === 0 ? b.name : '' },
+          data: { ...base, id: `${cyId('branch', b.id)}_${i}`, source: hub, target: cyId('node', nid), label: i === 0 ? b.name : '', leg: i },
           classes: 'branch',
         })
       })
@@ -113,14 +114,15 @@ export function buildElements(topo: NetworkTopology, opts: BuildOptions): Elemen
     for (const a of topo.appliances) {
       if (!nodeIds.has(a.node)) continue
       const cls = a.type.includes('gen') ? 'appliance gen' : a.type === 'shunt' ? 'appliance shunt' : 'appliance load'
+      const in_service = a.in_service ? 1 : 0
       els.push({
         group: 'nodes',
-        data: { id: cyId('appliance', a.id), kind: 'appliance', eid: a.id, atype: a.type, label: '' },
+        data: { id: cyId('appliance', a.id), kind: 'appliance', eid: a.id, atype: a.type, label: '', in_service },
         classes: cls,
       })
       els.push({
         group: 'edges',
-        data: { id: `x${cyId('appliance', a.id)}`, source: cyId('appliance', a.id), target: cyId('node', a.node), kind: 'stub' },
+        data: { id: `x${cyId('appliance', a.id)}`, source: cyId('appliance', a.id), target: cyId('node', a.node), kind: 'stub', in_service },
         classes: 'stub',
       })
     }

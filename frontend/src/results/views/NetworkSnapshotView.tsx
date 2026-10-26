@@ -4,7 +4,18 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { snapshotQuery, useSnapshot } from '../../api/hooks'
 import { useChartTheme } from '../../components/charts/theme'
 import type { DiagramOverlay, ElementRef } from '../../components/network'
-import { ElementDetails, GradientLegend, loadingColor, NetworkDiagram, voltageDivergingColor } from '../../components/network'
+import {
+  branchInService,
+  ElementDetails,
+  energisedNodes,
+  GradientLegend,
+  ISLANDED_TIP,
+  loadingColor,
+  NetworkDiagram,
+  OOS_TIP,
+  StatusLegend,
+  voltageDivergingColor,
+} from '../../components/network'
 import { changedElements } from '../../components/network/overrides'
 import { EmptyState, ErrorState, IconButton, LoadingState, Segmented, Spinner } from '../../components/ui'
 import { fmtDateTime, fmtPct, fmtPu, toDate } from '../../lib/format'
@@ -72,8 +83,11 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
   // the run's own network: branches switched off by the frozen case's overrides are drawn dashed
   const overrides = ctx.case?.network_overrides
   const changed = useMemo(() => changedElements(overrides ?? []), [overrides])
-  const outOfService = useMemo(
-    () => (ctx.topology ? new Set(ctx.topology.branches.filter((b) => !b.in_service).map((b) => b.id)) : undefined),
+  const status = useMemo(
+    () =>
+      ctx.topology
+        ? { branchOff: new Set(ctx.topology.branches.filter((b) => !branchInService(b)).map((b) => b.id)), energised: energisedNodes(ctx.topology) }
+        : undefined,
     [ctx.topology],
   )
 
@@ -82,14 +96,22 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
   if (!ctx.topology || !ctx.fileTopology) return <EmptyState title="Network not available" description="The case or network of this run could not be found." />
 
   const sel = selected
+  // switched-off branches carry no flow and islanded nodes have no voltage (values may be null/NaN)
+  const selStatus =
+    sel?.kind === 'branch' && status?.branchOff.has(sel.id)
+      ? `${OOS_TIP} — no flow`
+      : sel?.kind === 'node' && status && !status.energised.has(sel.id)
+        ? ISLANDED_TIP
+        : null
   const selValue =
-    sel && snap.data
+    selStatus ??
+    (sel && snap.data
       ? sel.kind === 'node'
         ? `${fmtPu(snap.data.nodes[String(sel.id)])} pu`
         : sel.kind === 'branch'
           ? fmtPct(snap.data.branches[String(sel.id)])
           : null
-      : null
+      : null)
 
   return (
     <div className="grid gap-3">
@@ -125,7 +147,7 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
         <NetworkDiagram
           topology={ctx.fileTopology}
           changed={changed}
-          outOfService={outOfService}
+          statusTopology={ctx.topology}
           overlay={overlay}
           overlayKey={t}
           selected={selected}
@@ -144,6 +166,7 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
                 stops={[loadingColor(0, theme), loadingColor(0.6, theme), loadingColor(1, theme), loadingColor(1.2, theme)]}
                 ticks={['0%', '60%', '100%', '120%']}
               />
+              <StatusLegend topology={ctx.topology} theme={theme} />
             </div>
           }
         />
@@ -157,9 +180,9 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
               onClose={() => setSelected(null)}
               extra={
                 selValue && (
-                  <div className="mt-2 rounded-md bg-surface-2 px-2.5 py-2 text-sm">
+                  <div className="mt-2 rounded-md bg-surface-2 px-2.5 py-2 text-sm" data-testid="snapshot-value">
                     <div className="text-xs text-fg-muted">{sel.kind === 'node' ? 'Voltage' : 'Loading'} at this timestep</div>
-                    <div className="text-lg font-semibold tabular">{selValue}</div>
+                    <div className={selStatus ? 'text-base font-semibold text-fg-2' : 'text-lg font-semibold tabular'}>{selValue}</div>
                   </div>
                 )
               }

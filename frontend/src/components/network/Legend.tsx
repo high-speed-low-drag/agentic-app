@@ -1,5 +1,7 @@
 import type { NetworkTopology } from '../../api/schema'
 import type { ChartTheme } from '../charts/theme'
+import { useMemo } from 'react'
+import { branchInService, energisedNodes, ISLANDED_TIP, OOS_TIP } from './energised'
 import { BRANCH_TYPE_LABELS, branchTypeColor, voltageColor, voltageLevels } from './graph'
 
 export function Swatch({ color, shape = 'dot' }: { color: string; shape?: 'dot' | 'line' }) {
@@ -10,8 +12,50 @@ export function Swatch({ color, shape = 'dot' }: { color: string; shape?: 'dot' 
   )
 }
 
-/** Default legend: voltage levels + branch types present in the topology. */
-export function TopologyLegend({ topology, theme, changed }: { topology: NetworkTopology; theme: ChartTheme; changed?: boolean }) {
+/** Legend entries for the status cues; each shows only when such elements exist in `topology`. */
+export function StatusLegend({ topology, theme }: { topology: NetworkTopology; theme: ChartTheme }) {
+  const { off, islanded } = useMemo(() => {
+    const energised = energisedNodes(topology)
+    return {
+      off: topology.branches.some((b) => !branchInService(b)) || topology.appliances.some((a) => !a.in_service),
+      islanded: topology.nodes.some((n) => !energised.has(n.id)),
+    }
+  }, [topology])
+  if (!off && !islanded) return null
+  return (
+    <span data-testid="status-legend" className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
+      <span className="h-3 w-px bg-border" />
+      {off && (
+        <span className="inline-flex items-center gap-1">
+          <span className="inline-block w-3.5 border-t-[1.5px] border-dashed" style={{ borderColor: theme.muted }} />
+          {OOS_TIP}
+        </span>
+      )}
+      {islanded && (
+        <span className="inline-flex items-center gap-1">
+          <span className="inline-block size-2.5 rounded-full border-2" style={{ borderColor: theme.muted }} />
+          {ISLANDED_TIP}
+        </span>
+      )}
+    </span>
+  )
+}
+
+/**
+ * Default legend: voltage levels + branch types present in the topology. `status` (the effective
+ * topology) adds the out-of-service / not-energised entries.
+ */
+export function TopologyLegend({
+  topology,
+  theme,
+  changed,
+  status,
+}: {
+  topology: NetworkTopology
+  theme: ChartTheme
+  changed?: boolean
+  status?: NetworkTopology
+}) {
   const levels = voltageLevels(topology)
   const types = Array.from(new Set(topology.branches.map((b) => b.type)))
   return (
@@ -38,6 +82,7 @@ export function TopologyLegend({ topology, theme, changed }: { topology: Network
           </span>
         </>
       )}
+      <StatusLegend topology={status ?? topology} theme={theme} />
     </div>
   )
 }

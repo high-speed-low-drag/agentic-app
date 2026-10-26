@@ -34,10 +34,6 @@ export function NetworkExplorer({
   const changed = useMemo(() => changedElements(overrides ?? []), [overrides])
   const ownEffective = useMemo(() => (effectiveProp ? undefined : effectiveTopology(topology, overrides ?? [])), [effectiveProp, topology, overrides])
   const effective = effectiveProp ?? ownEffective!
-  const outOfService = useMemo(
-    () => new Set(effective.topology.branches.filter((b) => !b.in_service).map((b) => b.id)),
-    [effective],
-  )
   const { selected, focusElement, revealInTable, backToDiagram, tableRef, diagramRef } = useNetworkSelection()
   const [layout, setLayout] = useState<DiagramLayout>('auto')
   const [showAppliances, setShowAppliances] = useState(topology.appliances.length <= 400)
@@ -69,9 +65,9 @@ export function NetworkExplorer({
           layout={layout}
           showAppliances={showAppliances}
           height={520}
-          legend={<TopologyLegend topology={topology} theme={theme} changed={changed.size > 0} />}
+          legend={<TopologyLegend topology={topology} theme={theme} changed={changed.size > 0} status={effective.topology} />}
           changed={changed}
-          outOfService={outOfService}
+          statusTopology={effective.topology}
         />
         <div className="rounded-md border border-border bg-surface p-3">
           {selected ? (

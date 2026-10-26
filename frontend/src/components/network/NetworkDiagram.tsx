@@ -10,6 +10,7 @@ import type { ChartTheme } from '../charts/theme'
 import { useChartTheme } from '../charts/theme'
 import type { ElementRef } from './graph'
 import { branchTypeColor, buildElements, cyId, parseCyId, rootNodeIds, voltageColor, voltageLevels } from './graph'
+import { branchInService, energisedNodes, ISLANDED_TIP, OOS_LABEL, OOS_TIP, OOS_WIDTH } from './energised'
 import { focusZoom, prefersReducedMotion } from './selection'
 
 declare global {
@@ -62,10 +63,11 @@ export interface NetworkDiagramProps {
   /** Elements to mark as changed (amber ring/halo), as `kind:id` keys, e.g. "branch:47". */
   changed?: Set<string>
   /**
-   * Branch ids out of service in the case (e.g. after an override). When given it replaces the
-   * file status for the dashed style, applied in place without re-layout.
+   * The topology whose statuses are drawn (out-of-service branches/appliances, non-energised nodes),
+   * e.g. the case's effective topology with overrides applied. Defaults to `topology`. Applied in
+   * place without re-layout; `topology` alone drives the layout.
    */
-  outOfService?: Set<number>
+  statusTopology?: NetworkTopology
   ref?: Ref<NetworkDiagramHandle>
 }
 
@@ -112,7 +114,6 @@ function stylesheet(t: ChartTheme): StylesheetJson {
         opacity: 0.9,
       },
     },
-    { selector: 'edge[in_service = 0]', style: { 'line-style': 'dashed', opacity: 0.5 } },
     { selector: 'edge.stub', style: { width: 0.8, 'line-color': t.axis, 'line-style': 'dotted' } },
     {
       selector: ':selected',
@@ -126,6 +127,43 @@ function stylesheet(t: ChartTheme): StylesheetJson {
     {
       selector: 'edge.changed',
       style: { 'underlay-color': t.warn, 'underlay-opacity': 0.55, 'underlay-padding': 4 } as never,
+    },
+    // status cues come last so they win over the overlay colour/width and the changed halo
+    {
+      selector: 'node[kind = "node"][energised = 0]',
+      style: { 'background-opacity': 0, 'border-width': 2, 'border-color': t.muted, 'border-opacity': 1 },
+    },
+    {
+      selector: 'node.appliance[in_service = 0], node.hub[in_service = 0]',
+      style: { 'background-opacity': 0, 'border-width': 1.2, 'border-color': t.muted, 'border-opacity': 1 },
+    },
+    { selector: 'edge.stub[in_service = 0]', style: { 'line-style': 'dashed', 'line-dash-pattern': [3, 2], 'line-color': t.muted, width: 0.8 } },
+    {
+      selector: 'edge.branch[in_service = 0]',
+      style: { width: OOS_WIDTH, 'line-color': t.muted, 'line-style': 'dashed', 'line-dash-pattern': [6, 5], opacity: 1 },
+    },
+    {
+      selector: 'edge.branch[in_service = 0][leg = 0]',
+      style: {
+        label: OOS_LABEL,
+        'font-size': 8,
+        'font-weight': 600,
+        color: t.fg2,
+        'text-rotation': 'none',
+        'text-background-color': t.surface,
+        'text-background-opacity': 1,
+        'text-background-padding': '1.5px',
+        'text-background-shape': 'roundrectangle',
+        'text-border-width': 1,
+        'text-border-color': t.muted,
+        'text-border-opacity': 1,
+        'min-zoomed-font-size': 5,
+      },
+    },
+    // edited and out of service: a thin amber underlay that keeps the dashes visible, amber marker border
+    {
+      selector: 'edge.branch.changed[in_service = 0]',
+      style: { 'underlay-padding': 1.5, 'underlay-opacity': 0.4, 'text-border-color': t.warn } as never,
     },
     { selector: 'node:selected', style: { 'border-color': t.accent, 'border-width': 3 } },
   ]
@@ -177,7 +215,7 @@ export function NetworkDiagram({
   className,
   legend,
   changed,
-  outOfService,
+  statusTopology,
   ref: handleRef,
 }: NetworkDiagramProps) {
   const theme = useChartTheme()
@@ -229,6 +267,13 @@ export function NetworkDiagram({
       const r = parseCyId(raw)
       if (r) onSelectRef.current?.(r)
     })
+    // native tooltip for status cues (out of service / not energised)
+    cy.on('mouseover', 'node, edge', (evt) => {
+      const tip = evt.target.data('tip')
+      if (tip) el.title = tip
+      else el.removeAttribute('title')
+    })
+    cy.on('mouseout', 'node, edge', () => el.removeAttribute('title'))
     cy.layout(layoutOptions(layout, topology, elements.length)).run()
     const ro = new ResizeObserver(() => cy.resize())
     ro.observe(el)
@@ -275,16 +320,34 @@ export function NetworkDiagram({
     })
   }, [changed, elements, layout])
 
-  // case branch status (dashed out-of-service edges)
+  // statuses: out-of-service branches/appliances and non-energised nodes, from the status topology
+  const status = useMemo(() => {
+    const st = statusTopology ?? topology
+    return {
+      branchOff: new Set(st.branches.filter((b) => !branchInService(b)).map((b) => b.id)),
+      applianceOff: new Set(st.appliances.filter((a) => !a.in_service).map((a) => a.id)),
+      energised: energisedNodes(st),
+    }
+  }, [statusTopology, topology])
   useEffect(() => {
     const cy = cyRef.current
-    if (!cy || !outOfService) return
+    if (!cy) return
     cy.batch(() => {
-      cy.edges('.branch').forEach((e) => {
-        e.data('in_service', outOfService.has(Number(e.data('eid'))) ? 0 : 1)
+      cy.elements('.branch, .hub').forEach((e) => {
+        const off = status.branchOff.has(Number(e.data('eid')))
+        e.data({ in_service: off ? 0 : 1, tip: off ? OOS_TIP : '' })
+      })
+      cy.nodes('.appliance').forEach((a) => {
+        const off = status.applianceOff.has(Number(a.data('eid')))
+        a.data({ in_service: off ? 0 : 1, tip: off ? OOS_TIP : '' })
+        a.connectedEdges('.stub').data('in_service', off ? 0 : 1)
+      })
+      cy.nodes('[kind = "node"]').forEach((n) => {
+        const on = status.energised.has(Number(n.data('eid')))
+        n.data({ energised: on ? 1 : 0, tip: on ? '' : ISLANDED_TIP })
       })
     })
-  }, [outOfService, elements, layout])
+  }, [status, elements, layout])
 
   // selection sync
   useEffect(() => {
@@ -340,6 +403,8 @@ export function NetworkDiagram({
       ref={outerRef}
       data-testid="network-diagram"
       data-changed-count={changed?.size ?? 0}
+      data-out-of-service-count={status.branchOff.size + status.applianceOff.size}
+      data-not-energised-count={topology.nodes.length - status.energised.size}
       data-selected={selected ? `${selected.kind}:${selected.id}` : ''}
       className={cn('relative overflow-hidden rounded-md border border-border bg-surface-2', className)} style={{ height }}>
       <div ref={ref} className="absolute inset-0 h-full w-full" />
