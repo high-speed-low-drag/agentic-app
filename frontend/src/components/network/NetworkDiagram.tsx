@@ -314,7 +314,9 @@ export function NetworkDiagram({
       elements,
       minZoom: 0.05,
       maxZoom: 6,
-      wheelSensitivity: 0.3,
+      // the wheel scrolls the page; zoom with the + / − buttons (this also turns off pinch-zoom)
+      userZoomingEnabled: false,
+      userPanningEnabled: true,
       boxSelectionEnabled: false,
       selectionType: 'single',
     })

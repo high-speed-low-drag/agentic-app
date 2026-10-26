@@ -117,7 +117,7 @@ export function NetworkSection({ draft, onChange }: { draft: CaseStudy; onChange
         <Card>
           <CardHeader
             title="Topology"
-            description="Pan with drag, zoom with the wheel; click an element for details. Edit parameters in the table: changes apply to this case only, the network file stays unchanged."
+            description="Pan with drag, zoom with + / −; click an element for details. Edit parameters in the table: changes apply to this case only, the network file stays unchanged."
           />
           <CardBody>
             {topo.isLoading ? (
