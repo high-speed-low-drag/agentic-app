@@ -39,6 +39,7 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 | T14 | Snapshot 24h day/night clock + daylight-shaded slider | done | T13 | frontend/ | `make check && make e2e` |
 | T15 | IEC-style symbols: transformer two-circle, generator ~, external grid, shunt | done | T14 | frontend/ (+ maybe shunt b1 in backend topology) | `make check && make e2e` |
 | T16 | Disable scroll-wheel zoom in network diagrams (+/− and fit stay) | done | T15 | frontend/ | `make check && make e2e` |
+| T17 | Smaller bus nodes (~9 px), scaled rings, keep click area | in_progress | T16 | frontend/ | `make check && make e2e` |
 
 ## Log
 - 2026-10-26: profile scale factor shipped (d1d031c). T6 approved by user; sub-agent started.
@@ -65,3 +66,4 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 - T16 approved by user as a separate task; queued until T15 is committed.
 - T15 done: make check (59 pytest — agent reported 60, actual 59 = 58+1; 76 vitest) + make e2e (15/15) verified; screenshots reviewed. Backend change: shunt b1 in topology (needs backend reload). T16 sub-agent started.
 - T16 done: make check (59 pytest, 76 vitest) + make e2e (17/17) verified.
+- T17 approved by user; sub-agent started.
