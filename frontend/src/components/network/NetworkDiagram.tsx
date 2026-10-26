@@ -61,6 +61,11 @@ export interface NetworkDiagramProps {
   legend?: ReactNode
   /** Elements to mark as changed (amber ring/halo), as `kind:id` keys, e.g. "branch:47". */
   changed?: Set<string>
+  /**
+   * Branch ids out of service in the case (e.g. after an override). When given it replaces the
+   * file status for the dashed style, applied in place without re-layout.
+   */
+  outOfService?: Set<number>
   ref?: Ref<NetworkDiagramHandle>
 }
 
@@ -172,6 +177,7 @@ export function NetworkDiagram({
   className,
   legend,
   changed,
+  outOfService,
   ref: handleRef,
 }: NetworkDiagramProps) {
   const theme = useChartTheme()
@@ -268,6 +274,17 @@ export function NetworkDiagram({
       }
     })
   }, [changed, elements, layout])
+
+  // case branch status (dashed out-of-service edges)
+  useEffect(() => {
+    const cy = cyRef.current
+    if (!cy || !outOfService) return
+    cy.batch(() => {
+      cy.edges('.branch').forEach((e) => {
+        e.data('in_service', outOfService.has(Number(e.data('eid'))) ? 0 : 1)
+      })
+    })
+  }, [outOfService, elements, layout])
 
   // selection sync
   useEffect(() => {

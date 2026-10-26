@@ -3,12 +3,14 @@ import type { ReactNode } from 'react'
 import type { NetworkTopology } from '../../api/schema'
 import { fmtKv, fmtPowerW, fmtPu, fmtVar } from '../../lib/format'
 import { Badge, Button } from '../ui'
+import { EditedMarker } from './EditedMarker'
 import type { ElementRef } from './graph'
+import type { EffectiveTopology } from './overrides'
 import { BRANCH_TYPE_LABELS } from './graph'
 
 function Row({ k, v }: { k: string; v: ReactNode }) {
   return (
-    <div className="flex justify-between gap-3 border-b border-border py-1.5 text-sm last:border-0">
+    <div data-testid="details-row" data-key={k} className="flex justify-between gap-3 border-b border-border py-1.5 text-sm last:border-0">
       <span className="text-fg-muted">{k}</span>
       <span className="text-right text-fg tabular">{v}</span>
     </div>
@@ -24,9 +26,14 @@ function NodeLink({ topology, id, onSelect }: { topology: NetworkTopology; id: n
   )
 }
 
-/** Detail panel for a selected network element. `extra` rows can add result values. */
+/**
+ * Detail panel for a selected network element. `extra` rows can add result values.
+ * With `edits`, `topology` is the effective (override-applied) topology and edited values get an
+ * amber "edited" marker with the file value in its tooltip.
+ */
 export function ElementDetails({
   topology,
+  edits,
   selected,
   onClose,
   onSelect,
@@ -35,6 +42,7 @@ export function ElementDetails({
   showInTableLabel = 'Show in table',
 }: {
   topology: NetworkTopology
+  edits?: Pick<EffectiveTopology, 'isEdited' | 'fileValue'>
   selected: ElementRef
   onClose?: () => void
   onSelect?: (r: ElementRef) => void
@@ -44,6 +52,17 @@ export function ElementDetails({
   showInTableLabel?: string
 }) {
   const link = (id: number) => <NodeLink topology={topology} id={id} onSelect={onSelect} />
+  /** A value, marked when edited; `fmt` formats the file value for the tooltip. */
+  const val = (field: string, text: string, fmt: (file: number | undefined) => string) => {
+    if (!edits?.isEdited(selected.kind, selected.id, field)) return text
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        <span className="font-medium text-warn">{text}</span>
+        <EditedMarker title={`File value: ${fmt(edits.fileValue(selected.kind, selected.id, field))}`} />
+      </span>
+    )
+  }
+  const yesNo = (v: number | boolean | undefined) => (v ? 'yes' : 'no')
 
   let title: string
   let kindLabel: string
@@ -93,7 +112,7 @@ export function ElementDetails({
         <Row k="From" v={link(b.from_node)} />
         <Row k="To" v={link(b.to_node)} />
         {b.node_3 != null && <Row k="Node 3" v={link(b.node_3)} />}
-        <Row k="In service" v={b.in_service ? 'yes' : 'no'} />
+        <Row k="In service" v={val('in_service', yesNo(b.in_service), yesNo)} />
       </>
     )
   } else if (selected.kind === 'appliance') {
@@ -105,9 +124,9 @@ export function ElementDetails({
       <>
         <Row k="ID" v={a.id} />
         <Row k="Node" v={link(a.node)} />
-        <Row k="P specified" v={fmtPowerW(a.p_specified)} />
-        <Row k="Q specified" v={fmtVar(a.q_specified)} />
-        <Row k="In service" v={a.in_service ? 'yes' : 'no'} />
+        <Row k="P specified" v={val('p_specified', fmtPowerW(a.p_specified), fmtPowerW)} />
+        <Row k="Q specified" v={val('q_specified', fmtVar(a.q_specified), fmtVar)} />
+        <Row k="In service" v={val('in_service', yesNo(a.in_service), yesNo)} />
       </>
     )
   } else {
@@ -119,7 +138,7 @@ export function ElementDetails({
       <>
         <Row k="ID" v={s.id} />
         <Row k="Node" v={link(s.node)} />
-        <Row k="u_ref" v={`${fmtPu(s.u_ref)} pu`} />
+        <Row k="u_ref" v={val('u_ref', `${fmtPu(s.u_ref)} pu`, (f) => `${fmtPu(f)} pu`)} />
       </>
     )
   }

@@ -2,7 +2,6 @@ import { ArrowDown, ArrowUp, FileSpreadsheet, Trash2, Upload } from 'lucide-reac
 import { useMemo, useRef } from 'react'
 import { useUploadProfileCsv } from '../../api/hooks'
 import type {
-  NetworkTopology,
   ProfileAssignment,
   ProfileGeneratorInfo,
   ProfileTargetComponent,
@@ -10,6 +9,8 @@ import type {
   TimeSettings,
 } from '../../api/schema'
 import { PROFILE_TARGET_COMPONENTS } from '../../api/schema'
+import { EditedMarker } from '../../components/network/EditedMarker'
+import type { EffectiveTopology } from '../../components/network/overrides'
 import { SchemaField, SchemaForm } from '../../components/SchemaForm'
 import { Badge, Button, Card, Field, IconButton, MultiSelect, NumberInput, Segmented, Select, TextInput, useToast } from '../../components/ui'
 import { fmtDateTime, fmtPowerW } from '../../lib/format'
@@ -18,6 +19,24 @@ import { ProfilePreview } from './ProfilePreview'
 import { defaultMagnitude, isCsvGenerator, withGenerator } from './profileUtils'
 
 const COMPONENT_LABEL: Record<ProfileTargetComponent, string> = { sym_load: 'Symmetric loads', sym_gen: 'Symmetric generators' }
+
+type Appliance = EffectiveTopology['topology']['appliances'][number]
+
+/** Target list hint: current P (with an "edited" marker) and "out of service" when it is. */
+function TargetHint({ a, eff }: { a: Appliance; eff: EffectiveTopology }) {
+  const pEdited = eff.isEdited('appliance', a.id, 'p_specified')
+  const sEdited = eff.isEdited('appliance', a.id, 'in_service')
+  const file: string[] = []
+  if (pEdited) file.push(`P ${fmtPowerW(eff.fileValue('appliance', a.id, 'p_specified'))}`)
+  if (sEdited) file.push(eff.fileValue('appliance', a.id, 'in_service') ? 'in service' : 'out of service')
+  return (
+    <span data-testid="target-hint" className="inline-flex items-center gap-1.5">
+      {!a.in_service && <span className="text-fg-muted italic">out of service</span>}
+      <span className={pEdited ? 'font-medium text-warn' : undefined}>{fmtPowerW(a.p_specified)}</span>
+      {file.length > 0 && <EditedMarker title={`File value: ${file.join(', ')}`} />}
+    </span>
+  )
+}
 
 export function ProfileAssignmentCard({
   index,
@@ -36,7 +55,8 @@ export function ProfileAssignmentCard({
   count: number
   assignment: ProfileAssignment
   generators: ProfileGeneratorInfo[]
-  topology?: NetworkTopology
+  /** effective topology (case overrides applied) */
+  topology?: EffectiveTopology
   time: TimeSettings
   csvFiles: Record<string, ProfileUploadResponse>
   onCsvUploaded: (r: ProfileUploadResponse) => void
@@ -53,9 +73,11 @@ export function ProfileAssignmentCard({
   const components = gen?.applies_to?.length ? gen.applies_to : PROFILE_TARGET_COMPONENTS
   const candidates = useMemo(
     () =>
-      (topology?.appliances ?? [])
-        .filter((x) => x.type === a.target.component)
-        .map((x) => ({ value: x.id, label: x.name, hint: fmtPowerW(x.p_specified) })),
+      topology
+        ? topology.topology.appliances
+            .filter((x) => x.type === a.target.component)
+            .map((x) => ({ value: x.id, label: x.name, hint: <TargetHint a={x} eff={topology} /> }))
+        : [],
     [topology, a.target.component],
   )
   const fileInfo = typeof a.params.file_id === 'string' ? csvFiles[a.params.file_id] : undefined

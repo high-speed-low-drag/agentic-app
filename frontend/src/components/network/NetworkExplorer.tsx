@@ -9,18 +9,35 @@ import { ElementTable } from './ElementTable'
 import { TopologyLegend } from './Legend'
 import type { DiagramLayout } from './NetworkDiagram'
 import { NetworkDiagram } from './NetworkDiagram'
-import { changedElements } from './overrides'
+import type { EffectiveTopology } from './overrides'
+import { changedElements, effectiveTopology } from './overrides'
 import { useNetworkSelection } from './useNetworkSelection'
 
 /**
  * Diagram + details panel + searchable element table, sharing one selection.
  * With `editing`, the table's editable fields become inline inputs (per-case overrides)
- * and changed elements are marked in the diagram.
+ * and changed elements are marked in the diagram. `topology` is the network file's topology
+ * (the table needs the file values, the diagram layout stays put); the details panel and the
+ * diagram's branch status show `effective` (overrides applied; computed here when not given).
  */
-export function NetworkExplorer({ topology, editing }: { topology: NetworkTopology; editing?: ElementTableEditing }) {
+export function NetworkExplorer({
+  topology,
+  effective: effectiveProp,
+  editing,
+}: {
+  topology: NetworkTopology
+  effective?: EffectiveTopology
+  editing?: ElementTableEditing
+}) {
   const theme = useChartTheme()
   const overrides = editing?.overrides
   const changed = useMemo(() => changedElements(overrides ?? []), [overrides])
+  const ownEffective = useMemo(() => (effectiveProp ? undefined : effectiveTopology(topology, overrides ?? [])), [effectiveProp, topology, overrides])
+  const effective = effectiveProp ?? ownEffective!
+  const outOfService = useMemo(
+    () => new Set(effective.topology.branches.filter((b) => !b.in_service).map((b) => b.id)),
+    [effective],
+  )
   const { selected, focusElement, revealInTable, backToDiagram, tableRef, diagramRef } = useNetworkSelection()
   const [layout, setLayout] = useState<DiagramLayout>('auto')
   const [showAppliances, setShowAppliances] = useState(topology.appliances.length <= 400)
@@ -54,11 +71,13 @@ export function NetworkExplorer({ topology, editing }: { topology: NetworkTopolo
           height={520}
           legend={<TopologyLegend topology={topology} theme={theme} changed={changed.size > 0} />}
           changed={changed}
+          outOfService={outOfService}
         />
         <div className="rounded-md border border-border bg-surface p-3">
           {selected ? (
             <ElementDetails
-              topology={topology}
+              topology={effective.topology}
+              edits={effective}
               selected={selected}
               onSelect={(r) => focusElement(r, 'details')}
               onClose={() => focusElement(null, 'details')}

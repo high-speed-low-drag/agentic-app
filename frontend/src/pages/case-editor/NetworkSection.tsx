@@ -1,12 +1,13 @@
 import { Network, Upload } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
-import { useEditableFields, useNetworks, useNetworkTopology, useUploadNetwork } from '../../api/hooks'
+import { useEditableFields, useNetworks, useUploadNetwork } from '../../api/hooks'
 import type { CaseStudy, ComponentCounts, NetworkOverride, NetworkRef } from '../../api/schema'
 import type { ElementTableEditing } from '../../components/network'
 import { NetworkExplorer } from '../../components/network'
 import { Badge, Button, Card, CardBody, CardHeader, ConfirmDialog, EmptyState, ErrorState, Field, LoadingState, Select, useToast } from '../../components/ui'
 import { humanize } from '../../lib/format'
 import { errorMessage } from '../../lib/utils'
+import { useCaseTopology } from './useCaseTopology'
 
 export function CountBadges({ counts }: { counts: ComponentCounts }) {
   return (
@@ -24,12 +25,11 @@ export function CountBadges({ counts }: { counts: ComponentCounts }) {
 
 export function NetworkSection({ draft, onChange }: { draft: CaseStudy; onChange: (c: CaseStudy) => void }) {
   const networks = useNetworks()
-  const topo = useNetworkTopology(draft.network.source || undefined, draft.network.key || undefined)
+  const { topo, overrides, effective } = useCaseTopology(draft)
   const upload = useUploadNetwork()
   const toast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
   const editable = useEditableFields()
-  const overrides = useMemo(() => draft.network_overrides ?? [], [draft.network_overrides])
   const [pendingNetwork, setPendingNetwork] = useState<NetworkRef | null>(null)
 
   /** Switching networks clears the overrides (they refer to the old network's elements). */
@@ -125,7 +125,7 @@ export function NetworkSection({ draft, onChange }: { draft: CaseStudy; onChange
             ) : topo.error ? (
               <ErrorState error={topo.error} title="Could not load topology" onRetry={() => void topo.refetch()} />
             ) : topo.data ? (
-              <NetworkExplorer key={`${topo.data.source}/${topo.data.key}`} topology={topo.data} editing={editing} />
+              <NetworkExplorer key={`${topo.data.source}/${topo.data.key}`} topology={topo.data} effective={effective} editing={editing} />
             ) : (
               <EmptyState title="No topology" />
             )}

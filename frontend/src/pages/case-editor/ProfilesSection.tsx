@@ -1,15 +1,16 @@
 import { Layers, Plus } from 'lucide-react'
 import { useState } from 'react'
-import { useNetworkTopology, useProfileGenerators } from '../../api/hooks'
+import { useProfileGenerators } from '../../api/hooks'
 import type { CaseStudy, ProfileAssignment, ProfileUploadResponse } from '../../api/schema'
 import { Button, Card, ConfirmDialog, EmptyState, ErrorState, LoadingState } from '../../components/ui'
 import { randomId } from '../../lib/utils'
 import { ProfileAssignmentCard } from './ProfileAssignmentCard'
 import { withGenerator } from './profileUtils'
+import { useCaseTopology } from './useCaseTopology'
 
 export function ProfilesSection({ draft, onChange }: { draft: CaseStudy; onChange: (c: CaseStudy) => void }) {
   const gens = useProfileGenerators()
-  const topo = useNetworkTopology(draft.network.source || undefined, draft.network.key || undefined)
+  const { effective } = useCaseTopology(draft)
   const [csvFiles, setCsvFiles] = useState<Record<string, ProfileUploadResponse>>({})
   const [removeIdx, setRemoveIdx] = useState<number | null>(null)
   const list = draft.profile_assignments
@@ -68,7 +69,7 @@ export function ProfilesSection({ draft, onChange }: { draft: CaseStudy; onChang
             count={list.length}
             assignment={a}
             generators={gens.data ?? []}
-            topology={topo.data}
+            topology={effective}
             time={draft.time}
             csvFiles={csvFiles}
             onCsvUploaded={(r) => setCsvFiles((m) => ({ ...m, [r.file_id]: r }))}

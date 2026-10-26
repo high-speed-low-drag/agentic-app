@@ -1,3 +1,4 @@
+export * from './EditedMarker'
 export * from './ElementDetails'
 export * from './ElementTable'
 export * from './graph'

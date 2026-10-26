@@ -1,4 +1,5 @@
 import { Search } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useMemo, useState } from 'react'
 import { cn } from '../../lib/utils'
 import { inputClass } from './Field'
@@ -6,7 +7,7 @@ import { inputClass } from './Field'
 export interface MultiSelectOption {
   value: number
   label: string
-  hint?: string
+  hint?: ReactNode
 }
 
 /** Searchable checklist for picking a set of element ids. */
