@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from gridsim.api import create_app
+from gridsim.workspace import REPO_ROOT
 
 from .conftest import SAMPLES, make_case
 
@@ -187,6 +188,20 @@ def test_runs_lifecycle(client: TestClient, run_id: str) -> None:
     assert client.get("/api/runs/r-20990101-000000-0000").status_code == 404
 
 
+def test_run_frozen_case(client: TestClient, run_id: str) -> None:
+    info = client.get(f"/api/runs/{run_id}").json()
+    live = client.get(f"/api/cases/{info['case_id']}").json()
+    frozen = client.get(f"/api/runs/{run_id}/case").json()
+    assert frozen["id"] == live["id"] and frozen["limits"] == live["limits"]
+    # Editing the live case afterwards does not change the frozen copy.
+    live["limits"] = {"u_min_pu": 0.9, "u_max_pu": 1.1, "loading_max": 0.8}
+    assert client.put(f"/api/cases/{live['id']}", json=live).status_code == 200
+    frozen2 = client.get(f"/api/runs/{run_id}/case").json()
+    assert frozen2["limits"] == frozen["limits"] != live["limits"]
+    assert client.get("/api/runs/r-20990101-000000-0000/case").status_code == 404
+    assert client.get("/api/runs/bad-id/case").status_code == 404
+
+
 def test_cancel_run(client: TestClient) -> None:
     body = small_case_body(
         name="Long", time={**TIME, "end": "2027-04-01T00:00:00", "resolution_minutes": 5}
@@ -270,6 +285,16 @@ def test_openapi_complete(client: TestClient) -> None:
             content = op["responses"][codes[0]].get("content")
             if codes[0] != "204":
                 assert content, (path, method)
+
+
+def test_committed_openapi_is_current() -> None:
+    """`frontend/openapi.json` must match the backend. If this fails, run `make types`."""
+    committed = REPO_ROOT / "frontend" / "openapi.json"
+    assert committed.exists(), "frontend/openapi.json missing: run `make types`"
+    fresh = json.loads(json.dumps(create_app().openapi()))
+    assert json.loads(committed.read_text(encoding="utf-8")) == fresh, (
+        "frontend/openapi.json is stale: run `make types` and commit the result"
+    )
 
 
 def test_spa_fallback_does_not_shadow_api(tmp_path, monkeypatch) -> None:

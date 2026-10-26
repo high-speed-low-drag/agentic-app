@@ -22,7 +22,7 @@ export function ResultsPanel({ runId }: { runId: string }) {
     <div className="grid gap-4">
       <KpiTiles kpis={summary.data.kpis} limits={limits} nTimesteps={summary.data.n_timesteps} />
       {RESULT_VIEWS.length > 0 && active && View && (
-        <Card>
+        <Card data-testid="result-views">
           <div className="px-4 pt-2">
             <Tabs
               value={active.id}
@@ -36,7 +36,9 @@ export function ResultsPanel({ runId }: { runId: string }) {
           </div>
           <CardBody>
             {active.description && <p className="mb-4 text-xs text-fg-muted">{active.description}</p>}
-            <View key={active.id} runId={runId} summary={summary.data} />
+            <div data-testid={`result-view-${active.id}`}>
+              <View key={active.id} runId={runId} summary={summary.data} />
+            </div>
           </CardBody>
         </Card>
       )}

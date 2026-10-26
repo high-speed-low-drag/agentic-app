@@ -340,7 +340,7 @@ export interface HeatmapResponse {
   ids: number[]
   names: string[]
   values: (number | null)[][]
-  aggregation: string
+  aggregation: 'max'
 }
 
 export interface SnapshotResponse {

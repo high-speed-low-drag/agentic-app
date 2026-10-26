@@ -26,6 +26,7 @@ export const qk = {
   case: (id: string) => ['case', id] as const,
   runs: (caseId?: string) => ['runs', caseId ?? null] as const,
   run: (id: string) => ['run', id] as const,
+  runCase: (id: string) => ['run-case', id] as const,
   summary: (id: string) => ['summary', id] as const,
   timeseries: (id: string, q: TimeseriesQuery) => ['timeseries', id, q] as const,
   envelope: (id: string, c: string, f: string) => ['envelope', id, c, f] as const,
@@ -148,6 +149,17 @@ export function useRun(runId?: string) {
     queryKey: qk.run(runId ?? ''),
     queryFn: () => api.getRun(runId!),
     enabled: !!runId,
+  })
+}
+
+/** The case frozen at run time. Immutable, so it never goes stale. */
+export function useRunCase(runId?: string) {
+  return useQuery({
+    queryKey: qk.runCase(runId ?? ''),
+    queryFn: () => api.getRunCase(runId!),
+    enabled: !!runId,
+    staleTime: Infinity,
+    retry: false,
   })
 }
 

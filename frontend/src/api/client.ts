@@ -163,6 +163,7 @@ export const api = {
   startRun: (caseId: string) => request<RunInfo>(`/cases/${enc(caseId)}/runs`, { method: 'POST' }),
   listRuns: (caseId?: string) => request<RunInfo[]>(`/runs${qs({ case_id: caseId })}`),
   getRun: (runId: string) => request<RunInfo>(`/runs/${enc(runId)}`),
+  getRunCase: (runId: string) => request<CaseStudy>(`/runs/${enc(runId)}/case`),
   cancelRun: (runId: string) => request<RunInfo>(`/runs/${enc(runId)}/cancel`, { method: 'POST' }),
   deleteRun: (runId: string) => request<void>(`/runs/${enc(runId)}`, { method: 'DELETE' }),
   runEventsUrl: (runId: string) => `${API_BASE}/runs/${enc(runId)}/events`,

@@ -3,7 +3,8 @@
 This is the source of truth shared by `backend/` and `frontend/`. The backend
 implements it with Pydantic models (`backend/src/gridsim/models.py`), and
 FastAPI serves the generated OpenAPI spec at `/openapi.json`. The frontend
-generates `frontend/src/api/schema.d.ts` from that spec (`make types`).
+generates `frontend/src/api/openapi.d.ts` from that spec (`make types`, via the committed
+`frontend/openapi.json`).
 
 Conventions:
 - All routes are prefixed with `/api`. JSON uses `snake_case`.
@@ -95,6 +96,7 @@ v0 generators: `constant` (value), `residential_load`, `commercial_load`, `pv` (
 - `POST /api/cases/{id}/runs` → RunInfo (202). Validates first and returns 422 with issues if invalid.
 - `GET /api/runs?case_id=` → RunInfo[] (newest first)
 - `GET /api/runs/{run_id}` → RunInfo
+- `GET /api/runs/{run_id}/case` → CaseStudy frozen at run creation (`runs/<id>/case.json`); result views read limits/network from it
 - `POST /api/runs/{run_id}/cancel` → RunInfo
 - `DELETE /api/runs/{run_id}` → 204
 - `GET /api/runs/{run_id}/events`: **SSE** stream. It sends `event: progress` with `data: RunInfo` JSON on each change, and ends after a terminal status with `event: done`.

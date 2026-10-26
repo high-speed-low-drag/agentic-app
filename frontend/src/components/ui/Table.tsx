@@ -128,6 +128,7 @@ export function Table<T>({
               return (
                 <tr
                   key={k}
+                  data-testid="table-row"
                   onClick={onRowClick ? () => onRowClick(r) : undefined}
                   className={cn(
                     'border-b border-border last:border-b-0',

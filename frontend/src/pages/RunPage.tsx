@@ -63,7 +63,9 @@ export function RunPage({ tab }: { tab?: 'results' }) {
         title={
           <span className="inline-flex items-center gap-3">
             {r.case_name}
-            <RunStatusBadge status={r.status} progress={r.progress} />
+            <span data-testid="run-status" data-status={r.status}>
+              <RunStatusBadge status={r.status} progress={r.progress} />
+            </span>
           </span>
         }
         subtitle={

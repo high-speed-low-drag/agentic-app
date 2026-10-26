@@ -238,7 +238,7 @@ export function NetworkDiagram({
   }
 
   return (
-    <div className={cn('relative overflow-hidden rounded-md border border-border bg-surface-2', className)} style={{ height }}>
+    <div data-testid="network-diagram" className={cn('relative overflow-hidden rounded-md border border-border bg-surface-2', className)} style={{ height }}>
       <div ref={ref} className="absolute inset-0 h-full w-full" />
       <div className="absolute top-2 right-2 flex flex-col overflow-hidden rounded-md border border-border bg-surface shadow-sm">
         <button className="p-1.5 text-fg-2 hover:bg-surface-3" onClick={() => zoom(1.25)} aria-label="Zoom in" title="Zoom in">

@@ -87,7 +87,7 @@ export function ElementTable({
   }, [rows, q])
 
   return (
-    <div className="flex flex-col">
+    <div data-testid="element-table" className="flex flex-col">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <Tabs
           size="sm"

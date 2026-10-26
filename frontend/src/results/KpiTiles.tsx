@@ -8,9 +8,9 @@ type Tone = 'neutral' | 'good' | 'bad'
 
 function Tile({ label, value, sub, tone = 'neutral' }: { label: string; value: ReactNode; sub?: ReactNode; tone?: Tone }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1 rounded-lg border border-border bg-surface px-4 py-3 shadow-[0_1px_2px_var(--c-shadow)]">
+    <div data-testid="kpi-tile" className="flex min-w-0 flex-col gap-1 rounded-lg border border-border bg-surface px-4 py-3 shadow-[0_1px_2px_var(--c-shadow)]">
       <div className="truncate text-xs font-medium text-fg-muted">{label}</div>
-      <div className="text-xl font-semibold tracking-tight text-fg">{value}</div>
+      <div data-testid="kpi-value" className="text-xl font-semibold tracking-tight text-fg">{value}</div>
       {sub && (
         <div
           className={cn(

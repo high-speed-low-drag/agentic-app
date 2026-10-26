@@ -115,7 +115,9 @@ function CaseEditor({
       }
       return saved
     } catch (e) {
-      if (e instanceof ApiError && e.issues.length) setValidation({ ok: false, n_timesteps: nSteps, issues: e.issues })
+      // 422 from model validation (e.g. end <= start) carries no `issues`: show its message in the panel.
+      if (e instanceof ApiError && (e.issues.length || e.status === 422))
+        setValidation({ ok: false, n_timesteps: nSteps, issues: e.issues.length ? e.issues : [{ level: 'error', message: errorMessage(e) }] })
       toast.error('Save failed', errorMessage(e))
       return null
     }
@@ -279,6 +281,8 @@ function IssuesPanel({
   const warnings = issues.filter((i) => i.level !== 'error')
   return (
     <div
+      data-testid="validation-panel"
+      data-ok={ok}
       className={`mb-4 rounded-lg border px-4 py-3 ${ok ? 'border-good/30 bg-good-soft' : 'border-bad/30 bg-bad-soft'}`}
       role={ok ? 'status' : 'alert'}
     >

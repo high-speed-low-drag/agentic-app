@@ -110,7 +110,7 @@ export function CasesPage() {
 </LinkButton>
         }
       />
-      <Card>
+      <Card data-testid="cases-list">
         {isLoading ? (
           <LoadingState label="Loading cases…" />
         ) : error ? (

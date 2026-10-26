@@ -75,7 +75,7 @@ export function ProfileAssignmentCard({
   }
 
   return (
-    <Card>
+    <Card data-testid="profile-assignment">
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5">
         <span className="grid size-6 place-items-center rounded-full bg-surface-3 text-xs font-semibold text-fg-2 tabular">{index + 1}</span>
         <TextInput

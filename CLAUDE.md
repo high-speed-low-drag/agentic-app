@@ -24,7 +24,12 @@ making changes.
 ## Commands
 - `make install`: install deps. `make dev`: backend :8000 + frontend :5173.
 - `make check`: lint + types + unit tests for both halves. **Must pass before you call a change done.**
-- `make e2e`: Playwright end-to-end test. `make types`: regenerate TS API types after backend model changes.
+- `make e2e`: Playwright end-to-end tests (own backend :8100 + Vite :5180, temp workspace; needs
+  `cd frontend && npx playwright install chromium` once).
+- `make types`: after any backend model/route change, re-export `frontend/openapi.json` (committed) and
+  regenerate `frontend/src/api/openapi.d.ts`. Drift guards in `make check`: backend test
+  `test_committed_openapi_is_current` fails while `openapi.json` is stale, and
+  `frontend/src/api/contract.check.ts` fails `tsc -b` while `schema.ts` disagrees with the generated types.
 - `cd backend && uv run gridsim run <case_id>`: headless run, for checking numbers without the UI.
 
 ## Rules

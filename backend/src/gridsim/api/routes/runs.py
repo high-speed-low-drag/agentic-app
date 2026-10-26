@@ -4,8 +4,9 @@ from fastapi import APIRouter, Query, Response, status
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from gridsim.api.deps import RunnerDep, WorkspaceDep
-from gridsim.models import RunInfo, ValidationResult
+from gridsim.models import CaseStudy, RunInfo, ValidationResult
 from gridsim.validation import validate_case
+from gridsim.workspace import NotFoundError, read_json
 
 router = APIRouter(tags=["runs"])
 
@@ -36,6 +37,16 @@ def list_runs(runner: RunnerDep, case_id: str | None = Query(None)) -> list[RunI
 @router.get("/runs/{run_id}", response_model=RunInfo)
 def get_run(run_id: str, runner: RunnerDep) -> RunInfo:
     return runner.get(run_id)
+
+
+@router.get("/runs/{run_id}/case", response_model=CaseStudy)
+def get_run_case(run_id: str, runner: RunnerDep) -> CaseStudy:
+    """The case as it was frozen when the run was created (`runs/<id>/case.json`)."""
+    runner.get(run_id)  # 404 for unknown runs
+    path = runner.run_dir(run_id) / "case.json"
+    if not path.exists():
+        raise NotFoundError(f"Frozen case for run '{run_id}' not found")
+    return CaseStudy.model_validate(read_json(path))
 
 
 @router.post("/runs/{run_id}/cancel", response_model=RunInfo)
