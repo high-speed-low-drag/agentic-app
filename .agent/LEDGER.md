@@ -40,6 +40,7 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 | T15 | IEC-style symbols: transformer two-circle, generator ~, external grid, shunt | done | T14 | frontend/ (+ maybe shunt b1 in backend topology) | `make check && make e2e` |
 | T16 | Disable scroll-wheel zoom in network diagrams (+/− and fit stay) | done | T15 | frontend/ | `make check && make e2e` |
 | T17 | Smaller bus nodes (~9 px), scaled rings, keep click area | done | T16 | frontend/ | `make check && make e2e` |
+| T18 | User-defined 4-point voltage colour scale (browser setting) | in_progress | T17 | frontend/ | `make check && make e2e` |
 
 ## Log
 - 2026-10-26: profile scale factor shipped (d1d031c). T6 approved by user; sub-agent started.
@@ -68,3 +69,4 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 - T16 done: make check (59 pytest, 76 vitest) + make e2e (17/17) verified.
 - T17 approved by user; sub-agent started.
 - T17 done: make check (59 pytest, 76 vitest) + make e2e (19/19) verified; screenshots reviewed. Voltage band scale briefed, awaiting user choice (run limits vs fixed).
+- T18 approved by user (browser-stored display setting); sub-agent started.
