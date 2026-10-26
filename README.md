@@ -7,6 +7,34 @@ make install
 make dev   # http://localhost:5173
 ```
 
+## Running without make
+
+If `make` isn't available, run the commands it wraps. Prerequisites: [uv](https://docs.astral.sh/uv/) (it provides Python 3.12) and Node 26 (pinned in `frontend/.nvmrc`; with nodenv, run `nodenv install <26.x> && cd frontend && nodenv local <26.x>`).
+
+**Install dependencies** (what `make install` runs):
+
+```bash
+cd backend && uv sync && cd ..
+```
+
+```bash
+cd frontend && npm install && cd ..
+```
+
+**Run in development mode** (live reload, same as `make dev`). Use two terminals. In the first, start the backend:
+
+```bash
+cd backend && uv run gridsim serve --reload
+```
+
+In the second, start the frontend:
+
+```bash
+cd frontend && npm run dev
+```
+
+Then open http://localhost:5173.
+
 See `docs/architecture.md`, `docs/api-contract.md`, and `docs/agentic-workflow.md` (how the app is built/extended with sub-agents).
 
 ## CI
