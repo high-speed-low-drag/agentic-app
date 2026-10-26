@@ -26,6 +26,7 @@ export function ProfilesSection({ draft, onChange }: { draft: CaseStudy; onChang
       target: { component: 'sym_load', ids: null },
       mode: 'scale',
       magnitude_w: null,
+      factor: 1,
     }
     // pick a load generator for the first assignment, otherwise the first one available
     const g = generators.find((x) => x.key === 'residential_load') ?? generators[0]

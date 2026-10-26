@@ -154,6 +154,9 @@ class ProfileAssignment(BaseModel):
     target: ProfileTarget = Field(default_factory=ProfileTarget)
     mode: Literal["scale", "add"] = "scale"
     magnitude_w: float | None = Field(None, description="Required for mode 'add' (W)")
+    factor: float = Field(
+        1.0, ge=0, le=100, description="Multiplier on the profile m(t), e.g. 2 = twice the peak"
+    )
 
 
 class CaseStudy(BaseModel):

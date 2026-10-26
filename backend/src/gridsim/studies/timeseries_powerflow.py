@@ -52,7 +52,7 @@ def build_update(
         pos = _target_positions(net, comp, a.target.ids)
         if len(pos) == 0:
             continue
-        m = PROFILE_GENERATORS.get(a.generator).run(timestamps, len(pos), a.params)
+        m = PROFILE_GENERATORS.get(a.generator).run(timestamps, len(pos), a.params) * a.factor
         if a.mode == "scale":
             p[:, pos] *= m
             q[:, pos] *= m

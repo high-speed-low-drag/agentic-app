@@ -56,6 +56,7 @@ JSON files). A future `lakehouse` source will implement the same interface.
   (`sym_load` / `sym_gen`). A generator produces a dimensionless multiplier
   series for each target element (it may vary per element, deterministic with a seed).
   - `mode: "scale"`: `p(t) = p_base * m(t)`, `q(t) = q_base * m(t)`.
+  - `factor` (default 1) multiplies `m(t)` in both modes, for stress tests (e.g. 2× peak load).
   - `mode: "add"`: `p(t) += magnitude_w * m(t)` (negative magnitude means
     behind-the-meter generation, e.g. rooftop PV on a load).
   - Assignments apply in list order. Appliances without an assignment keep

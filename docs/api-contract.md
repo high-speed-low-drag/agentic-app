@@ -69,7 +69,7 @@ v0 generators: `constant` (value), `residential_load`, `commercial_load`, `pv` (
   "profile_assignments": [
     {"id": "a1", "label": "Household load", "generator": "residential_load", "params": {"seed": 1},
      "target": {"component": "sym_load", "ids": null},     // null = all elements of that component
-     "mode": "scale", "magnitude_w": null}
+     "mode": "scale", "magnitude_w": null, "factor": 1.0}   // factor: 0..100, multiplies m(t) (stress tests, e.g. 2 = twice the peak)
   ],
   "created_at": "…", "updated_at": "…"
 }

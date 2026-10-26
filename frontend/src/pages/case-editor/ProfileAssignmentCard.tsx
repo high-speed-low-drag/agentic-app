@@ -170,7 +170,7 @@ export function ProfileAssignmentCard({
                 />
               )}
             </Field>
-            <Field label="Mode" hint={a.mode === 'scale' ? 'p(t) = p_base · m(t)' : 'p(t) += magnitude · m(t)'}>
+            <Field label="Mode" hint={a.mode === 'scale' ? 'p(t) = p_base · factor · m(t)' : 'p(t) += magnitude · factor · m(t)'}>
               <Segmented
                 value={a.mode}
                 onChange={(m) => onChange({ ...a, mode: m, magnitude_w: m === 'add' ? (a.magnitude_w ?? defaultMagnitude(a.generator)) : null })}
@@ -179,6 +179,11 @@ export function ProfileAssignmentCard({
                   { value: 'add', label: 'Add' },
                 ]}
               />
+            </Field>
+            <Field label="Scale factor" hint="Multiplies the whole profile, e.g. 2 = twice the peak (stress test)">
+              {(id) => (
+                <NumberInput id={id} data-testid="profile-factor" unit="×" min={0} max={100} value={a.factor} onChange={(v) => onChange({ ...a, factor: v ?? 1 })} />
+              )}
             </Field>
             {a.mode === 'add' && (
               <Field
@@ -210,7 +215,7 @@ export function ProfileAssignmentCard({
           </div>
         </div>
         <div className="min-w-0">
-          <ProfilePreview generator={a.generator} params={a.params} time={time} enabled={!csv || !!a.params.file_id} />
+          <ProfilePreview generator={a.generator} params={a.params} factor={a.factor} time={time} enabled={!csv || !!a.params.file_id} />
         </div>
       </div>
     </Card>

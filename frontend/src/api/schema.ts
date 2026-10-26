@@ -180,6 +180,8 @@ export interface ProfileAssignment {
   target: ProfileTarget
   mode: ProfileMode
   magnitude_w: number | null
+  /** multiplier on m(t), e.g. 2 = twice the peak (default 1) */
+  factor: number
 }
 
 export interface CaseStudy {

@@ -647,6 +647,12 @@ export interface components {
              * @description Required for mode 'add' (W)
              */
             magnitude_w?: number | null;
+            /**
+             * Factor
+             * @description Multiplier on the profile m(t), e.g. 2 = twice the peak
+             * @default 1
+             */
+            factor: number;
         };
         /** ProfileGeneratorInfo */
         ProfileGeneratorInfo: {

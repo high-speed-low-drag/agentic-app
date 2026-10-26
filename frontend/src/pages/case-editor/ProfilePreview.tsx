@@ -13,11 +13,14 @@ import { PREVIEW_DAYS, previewWindow } from './profileUtils'
 export function ProfilePreview({
   generator,
   params,
+  factor = 1,
   time,
   enabled = true,
 }: {
   generator: string
   params: Record<string, unknown>
+  /** applied client-side so changing it doesn't refetch */
+  factor?: number
   time: TimeSettings
   enabled?: boolean
 }) {
@@ -54,10 +57,10 @@ export function ProfilePreview({
         showSymbol: false,
         lineStyle: { width: 1.5 },
         sampling: 'lttb',
-        data: s.map((v, j) => [ts[j], v]),
+        data: s.map((v, j) => [ts[j], v === null ? null : v * factor]),
       })),
     }
-  }, [q.data, theme])
+  }, [q.data, theme, factor])
 
   if (!generator) return null
   return (

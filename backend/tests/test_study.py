@@ -93,3 +93,19 @@ def test_validation_errors() -> None:
     text = " | ".join(i.message for i in issues if i.level == "error")
     assert "unknown profile generator" in text
     assert "not in network" in text and "magnitude_w" in text
+
+
+def test_assignment_factor_scales_profile() -> None:
+    import pandas as pd
+
+    from gridsim.models import ProfileAssignment
+    from gridsim.studies.timeseries_powerflow import build_update
+
+    net = load_network("sample", "vision_mv")
+    ts = pd.date_range("2026-07-01", periods=24, freq="h")
+
+    def p_for(factor: float) -> np.ndarray:
+        a = ProfileAssignment(id="a", generator="residential_load", factor=factor)
+        return build_update(make_case(profile_assignments=[a]), net, ts)["sym_load"]["p_specified"]
+
+    np.testing.assert_allclose(p_for(2.5), 2.5 * p_for(1.0))
