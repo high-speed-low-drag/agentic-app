@@ -1,8 +1,12 @@
-.PHONY: install dev backend frontend types check check-backend check-frontend e2e build serve
+.PHONY: install ci-install dev backend frontend types check check-backend check-frontend e2e build serve
 
 install:            ## Install backend (uv) and frontend (npm) dependencies
 	cd backend && uv sync
 	cd frontend && npm install
+
+ci-install:         ## Install exactly from the lockfiles (used by CI)
+	cd backend && uv sync --frozen
+	cd frontend && npm ci
 
 dev:                ## Run backend (:8000) and frontend dev server (:5173) together
 	@trap 'kill 0' INT TERM EXIT; \

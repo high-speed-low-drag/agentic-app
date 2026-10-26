@@ -80,3 +80,4 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 - T20 done: make check (59 pytest, 95 vitest) + make e2e (22/22) verified; screenshots reviewed. PV investigation: demo case applies PV in scale mode on loads (multiplies demand); PV-scale-on-loads warning offered, awaiting decision.
 - Issue #5 raised (deferred): warn on PV scale mode on loads.
 - PR #6 opened. T21 (CI) approved by user; sub-agent started.
+- T21 committed + pushed to PR #6 after local verification (59 pytest, 95 vitest, 22/22 e2e). Awaiting first CI run. Known flaky: node-size.spec 'clear selection' click can hit an appliance.
