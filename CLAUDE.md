@@ -46,8 +46,9 @@ Multi-step work is orchestrated with sub-agents and must survive usage limits/re
 Follow `docs/agentic-workflow.md`:
 - **All implementation runs in background sub-agents, even small changes.** The main session only
   orchestrates (plans, briefs, verifies, commits), so it stays available to the user.
-- **Go-ahead gate:** before sending a task to build, present the plan (what changes, the approach, the files,
-  how it is verified) and wait for the user's explicit go-ahead. Each task needs its own approval.
+- **Go-ahead gate:** before sending a task to build, give the user a 1–2 paragraph brief: what changes and why,
+  the approach and trade-offs, the files touched, and how it is verified. Then wait for the user's explicit
+  go-ahead. Each task needs its own approval.
 - The ledger `.agent/LEDGER.md` is the plan and status.
 - Briefs go in `.agent/briefs/`, and journals in `.agent/progress/`.
 - Only the orchestrator commits `checkpoint(<id>)` after the task's done check passes.
