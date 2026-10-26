@@ -99,3 +99,17 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 ## Planning notes
 - T24/T25 assessment (2026-10-26): data sources = high value, extends existing NetworkSource pattern (profiles need a ProfileSource beside generators). Engine pluggability = costly: the internal model, editable fields, overrides, topology and results schema are all PGM-shaped, and PGM batch is the performance core. Recommended: build T24; for T25 add a thin seam + conformance tests only, second engine only on concrete need. project.md section 2 ("power-grid-model is the only solver") must change if T25 goes ahead.
 - Open questions for tomorrow: which database/lakehouse (Databricks/Delta, Snowflake, Postgres/Timescale, other)? read-only or also write results back? which engine candidates and why (pandapower, OpenDSS, other)?
+
+## CIM/CDPSM direction (proposed 2026-10-26; replaces the T24/T25 framing if confirmed; waiting for the user's technical document)
+| id | task | status | deps | notes |
+|----|------|--------|------|-------|
+| C1 | Define the supported CIM subset (CDPSM-based profile): classes and attributes the app supports; mRID identity; units | proposed | user's CIM doc | decision record in docs/ |
+| C2 | Canonical network model + storage keyed by mRID (one table per CIM class; lakehouse-friendly), with versioned datasets | proposed | C1 | supersedes T24's network half |
+| C3 | CIM import/export (RDF/XML per CGMES/CDPSM, the target version per C1); convert bundled samples or use CIM sample feeders | proposed | C1, C2 | |
+| C4 | Engine adapter interface + CIM→PGM adapter, plus a conformance suite vs today's PGM results | proposed | C2 | supersedes T25 |
+| C5 | Profiles and time series keyed by mRID (external profile sources; CIM-aligned load groups where they fit) | proposed | C2 | supersedes T24's profile half |
+| C6 | Results aligned to CIM State Variables (SvVoltage, SvPowerFlow, plus loading), columnar by mRID × timestep; SV export for a timestep | proposed | C4 | |
+| C7 | Equipment overrides expressed against mRID + CIM attribute; export as a CIM difference model | proposed | C2 | |
+| C8 | Diagram positions from the CIM DiagramLayout profile when present; auto-layout otherwise | proposed | C3 | |
+| C9 | Frontend migration: string mRIDs, CIM class names and labels; project.md constraints updated | proposed | C2–C6 | |
+- Assessment: CIM as the canonical semantic model plus interchange and storage format = yes. CIM as the in-memory compute or time-series format = no: an engine-native model is built per run, and time series are kept columnar.
