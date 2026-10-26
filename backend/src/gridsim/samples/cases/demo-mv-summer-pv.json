@@ -1,0 +1,295 @@
+{
+  "id": "demo-mv-summer-pv",
+  "name": "Vision MV – summer PV overvoltage",
+  "description": "A midsummer week on the Vision MV network with high rooftop PV (about 125 % of each LV area's peak demand) and mostly sunny days, so the network exports power to the HV grid at midday. Look at the Violations tab and the voltage and loading views: LV busbars rise above 1.05 pu every sunny midday and the LS transformers are overloaded by reverse flow on the sunniest days. The network edits are deliberate: HV source at 1.03 pu, main transformer tap -1 and every LS transformer one tap step up (+2.4 %, the winter setting).",
+  "network": {
+    "source": "sample",
+    "key": "vision_mv"
+  },
+  "time": {
+    "start": "2026-06-22T00:00:00",
+    "end": "2026-06-29T00:00:00",
+    "resolution_minutes": 15
+  },
+  "profile_assignments": [
+    {
+      "id": "a1",
+      "label": "Households (LV)",
+      "generator": "residential_load",
+      "params": {
+        "seed": 1
+      },
+      "target": {
+        "component": "sym_load",
+        "ids": [
+          105,
+          106,
+          108,
+          109,
+          110,
+          112,
+          113,
+          117,
+          118,
+          107,
+          114,
+          116,
+          119,
+          120,
+          121,
+          122,
+          123,
+          111,
+          115,
+          124
+        ]
+      },
+      "factor": 1.0
+    },
+    {
+      "id": "a2",
+      "label": "MV customer",
+      "generator": "commercial_load",
+      "params": {
+        "seed": 3
+      },
+      "target": {
+        "component": "sym_load",
+        "ids": [
+          104
+        ]
+      }
+    },
+    {
+      "id": "a3",
+      "label": "PV parks",
+      "generator": "pv",
+      "params": {
+        "seed": 3,
+        "cloudiness": 0.6
+      },
+      "target": {
+        "component": "sym_gen",
+        "ids": [
+          128,
+          101,
+          102
+        ]
+      }
+    },
+    {
+      "id": "a4",
+      "label": "Wind",
+      "generator": "constant",
+      "params": {
+        "value": 0.35
+      },
+      "target": {
+        "component": "sym_gen",
+        "ids": [
+          103
+        ]
+      }
+    },
+    {
+      "id": "a5",
+      "label": "Rooftop PV, 1 MVA residential areas (-1.2 MW)",
+      "generator": "pv",
+      "params": {
+        "seed": 3,
+        "cloudiness": 0.6
+      },
+      "target": {
+        "component": "sym_load",
+        "ids": [
+          105,
+          106,
+          108,
+          109,
+          110,
+          112,
+          113,
+          117,
+          118
+        ]
+      },
+      "mode": "add",
+      "magnitude_w": -1200000.0
+    },
+    {
+      "id": "a6",
+      "label": "Barn-roof PV, 160 kVA rural areas (-0.2 MW)",
+      "generator": "pv",
+      "params": {
+        "seed": 3,
+        "cloudiness": 0.6
+      },
+      "target": {
+        "component": "sym_load",
+        "ids": [
+          107,
+          114,
+          116,
+          119,
+          120,
+          121,
+          122,
+          123
+        ]
+      },
+      "mode": "add",
+      "magnitude_w": -200000.0
+    },
+    {
+      "id": "a7",
+      "label": "Rooftop PV, 1.6 MVA area (-1.9 MW)",
+      "generator": "pv",
+      "params": {
+        "seed": 3,
+        "cloudiness": 0.6
+      },
+      "target": {
+        "component": "sym_load",
+        "ids": [
+          111
+        ]
+      },
+      "mode": "add",
+      "magnitude_w": -1900000.0
+    }
+  ],
+  "network_overrides": [
+    {
+      "component": "source",
+      "id": 99,
+      "field": "u_ref",
+      "value": 1.03
+    },
+    {
+      "component": "transformer",
+      "id": 77,
+      "field": "tap_pos",
+      "value": -1
+    },
+    {
+      "component": "transformer",
+      "id": 78,
+      "field": "tap_pos",
+      "value": 4
+    },
+    {
+      "component": "transformer",
+      "id": 79,
+      "field": "tap_pos",
+      "value": 4
+    },
+    {
+      "component": "transformer",
+      "id": 80,
+      "field": "tap_pos",
+      "value": 4
+    },
+    {
+      "component": "transformer",
+      "id": 81,
+      "field": "tap_pos",
+      "value": 4
+    },
+    {
+      "component": "transformer",
+      "id": 82,
+      "field": "tap_pos",
+      "value": 4
+    },
+    {
+      "component": "transformer",
+      "id": 83,
+      "field": "tap_pos",
+      "value": 4
+    },
+    {
+      "component": "transformer",
+      "id": 84,
+      "field": "tap_pos",
+      "value": 4
+    },
+    {
+      "component": "transformer",
+      "id": 85,
+      "field": "tap_pos",
+      "value": 4
+    },
+    {
+      "component": "transformer",
+      "id": 86,
+      "field": "tap_pos",
+      "value": 4
+    },
+    {
+      "component": "transformer",
+      "id": 87,
+      "field": "tap_pos",
+      "value": 4
+    },
+    {
+      "component": "transformer",
+      "id": 88,
+      "field": "tap_pos",
+      "value": 4
+    },
+    {
+      "component": "transformer",
+      "id": 89,
+      "field": "tap_pos",
+      "value": 4
+    },
+    {
+      "component": "transformer",
+      "id": 90,
+      "field": "tap_pos",
+      "value": 4
+    },
+    {
+      "component": "transformer",
+      "id": 91,
+      "field": "tap_pos",
+      "value": 4
+    },
+    {
+      "component": "transformer",
+      "id": 92,
+      "field": "tap_pos",
+      "value": 4
+    },
+    {
+      "component": "transformer",
+      "id": 93,
+      "field": "tap_pos",
+      "value": 4
+    },
+    {
+      "component": "transformer",
+      "id": 94,
+      "field": "tap_pos",
+      "value": 4
+    },
+    {
+      "component": "transformer",
+      "id": 95,
+      "field": "tap_pos",
+      "value": 4
+    },
+    {
+      "component": "transformer",
+      "id": 96,
+      "field": "tap_pos",
+      "value": 4
+    },
+    {
+      "component": "transformer",
+      "id": 97,
+      "field": "tap_pos",
+      "value": 4
+    }
+  ]
+}

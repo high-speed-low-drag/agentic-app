@@ -1,0 +1,198 @@
+{
+  "id": "demo-ieee14-n1",
+  "name": "IEEE 14 – rated, line 2–4 outage",
+  "description": "The IEEE 14-bus network in a January week with +20 % demand and line 2–4 out for maintenance. Look at the Violations tab and branch loading: line 4–5 is overloaded through every weekday (07–22 h) and lines 2–5, 2–3 and 1–5 at the evening peak, while the generators hold all voltages within 0.95–1.10 pu. The network edits are deliberate: the file has no branch ratings, so each branch is rated at 1.3x its base-case flow (rounded up to 5 MVA), and line 2–4 is switched out on both ends.",
+  "network": {
+    "source": "sample",
+    "key": "ieee14"
+  },
+  "time": {
+    "start": "2027-01-11T00:00:00",
+    "end": "2027-01-18T00:00:00",
+    "resolution_minutes": 60
+  },
+  "limits": {
+    "u_min_pu": 0.95,
+    "u_max_pu": 1.1,
+    "loading_max": 1.0
+  },
+  "profile_assignments": [
+    {
+      "id": "a1",
+      "label": "Residential and commercial demand",
+      "generator": "residential_load",
+      "params": {
+        "seed": 11
+      },
+      "target": {
+        "component": "sym_load",
+        "ids": [
+          201,
+          204,
+          205,
+          206,
+          207,
+          208,
+          209,
+          210,
+          211
+        ]
+      },
+      "factor": 1.2
+    },
+    {
+      "id": "a2",
+      "label": "Industrial demand (buses 3, 4)",
+      "generator": "commercial_load",
+      "params": {
+        "seed": 12,
+        "base_level": 0.6,
+        "weekend_level": 0.7,
+        "open_hour": 7,
+        "close_hour": 22
+      },
+      "target": {
+        "component": "sym_load",
+        "ids": [
+          202,
+          203
+        ]
+      },
+      "factor": 1.2
+    }
+  ],
+  "network_overrides": [
+    {
+      "component": "generic_branch",
+      "id": 101,
+      "field": "sn",
+      "value": 210000000.0
+    },
+    {
+      "component": "generic_branch",
+      "id": 102,
+      "field": "sn",
+      "value": 100000000.0
+    },
+    {
+      "component": "generic_branch",
+      "id": 103,
+      "field": "sn",
+      "value": 100000000.0
+    },
+    {
+      "component": "generic_branch",
+      "id": 104,
+      "field": "sn",
+      "value": 75000000.0
+    },
+    {
+      "component": "generic_branch",
+      "id": 105,
+      "field": "sn",
+      "value": 55000000.0
+    },
+    {
+      "component": "generic_branch",
+      "id": 106,
+      "field": "sn",
+      "value": 35000000.0
+    },
+    {
+      "component": "generic_branch",
+      "id": 107,
+      "field": "sn",
+      "value": 85000000.0
+    },
+    {
+      "component": "generic_branch",
+      "id": 108,
+      "field": "sn",
+      "value": 40000000.0
+    },
+    {
+      "component": "generic_branch",
+      "id": 109,
+      "field": "sn",
+      "value": 25000000.0
+    },
+    {
+      "component": "generic_branch",
+      "id": 110,
+      "field": "sn",
+      "value": 60000000.0
+    },
+    {
+      "component": "generic_branch",
+      "id": 111,
+      "field": "sn",
+      "value": 15000000.0
+    },
+    {
+      "component": "generic_branch",
+      "id": 112,
+      "field": "sn",
+      "value": 15000000.0
+    },
+    {
+      "component": "generic_branch",
+      "id": 113,
+      "field": "sn",
+      "value": 25000000.0
+    },
+    {
+      "component": "generic_branch",
+      "id": 114,
+      "field": "sn",
+      "value": 25000000.0
+    },
+    {
+      "component": "generic_branch",
+      "id": 115,
+      "field": "sn",
+      "value": 40000000.0
+    },
+    {
+      "component": "generic_branch",
+      "id": 116,
+      "field": "sn",
+      "value": 10000000.0
+    },
+    {
+      "component": "generic_branch",
+      "id": 117,
+      "field": "sn",
+      "value": 15000000.0
+    },
+    {
+      "component": "generic_branch",
+      "id": 118,
+      "field": "sn",
+      "value": 10000000.0
+    },
+    {
+      "component": "generic_branch",
+      "id": 119,
+      "field": "sn",
+      "value": 5000000.0
+    },
+    {
+      "component": "generic_branch",
+      "id": 120,
+      "field": "sn",
+      "value": 10000000.0
+    },
+    {
+      "component": "generic_branch",
+      "id": 104,
+      "field": "from_status",
+      "value": 0
+    },
+    {
+      "component": "generic_branch",
+      "id": 104,
+      "field": "to_status",
+      "value": 0
+    }
+  ]
+}

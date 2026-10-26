@@ -78,5 +78,8 @@ JSON files). A future `lakehouse` source will implement the same interface.
 - `runs/<run_id>/case.json`: frozen copy of the case at run time.
 - `runs/<run_id>/node.parquet`, `branch.parquet`, `source.parquet`, `appliance.parquet`: long-format results.
 - `runs/<run_id>/summary.json`: KPIs, per-element extremes, violations.
+- `.seeded.json`: ids of the demo cases already seeded once. On startup, every bundled demo (the
+  "Vision MV – summer week" case plus `samples/cases/*.json`) that is not listed is created, unless a
+  case with that id exists. A demo the user deletes stays deleted; `gridsim seed-demos` restores it.
 
 The storage layer is isolated in `workspace.py`, so a DB or lakehouse backend can replace it.

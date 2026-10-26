@@ -13,6 +13,7 @@ from gridsim.workspace import REPO_ROOT
 from .conftest import SAMPLES, make_case
 
 DEMO = "vision-mv-summer-week"
+NEW_DEMOS = ["demo-ieee14-n1", "demo-mv-summer-pv", "demo-mv-winter-peak"]
 TIME = {"start": "2026-07-01T00:00:00", "end": "2026-07-02T00:00:00", "resolution_minutes": 60}
 
 
@@ -137,7 +138,9 @@ def test_csv_upload_and_csv_case(client: TestClient) -> None:
 
 def test_cases_crud_and_validate(client: TestClient) -> None:
     cases = client.get("/api/cases").json()
-    assert [c["id"] for c in cases] == [DEMO] and cases[0]["last_run"] is None
+    # The four seeded demos, newest first; they share a timestamp, so ties go by id.
+    assert [c["id"] for c in cases] == [DEMO, *reversed(NEW_DEMOS)]
+    assert all(c["last_run"] is None for c in cases)
     r = client.post("/api/cases", json=small_case_body(name="My Case!"))
     assert r.status_code == 201
     case = r.json()

@@ -6,6 +6,7 @@ Layout (root = `GRIDSIM_WORKSPACE`, default `<repo>/workspace`)::
     runs/<run_id>/{run.json, case.json, summary.json, elements.json, *.parquet}
     uploads/networks/<key>.json (+ <key>.meta.json)
     uploads/profiles/<file_id>.csv (+ <file_id>.meta.json)
+    .seeded.json  (ids of the demo cases seeded once, see `seed_demo_cases`)
 
 All storage access goes through `Workspace`, so it can be swapped for a DB later.
 """
@@ -102,7 +103,8 @@ class Workspace:
 
     def list_cases(self) -> list[CaseStudy]:
         cases = [CaseStudy.model_validate(read_json(p)) for p in self.cases_dir.glob("*/case.json")]
-        return sorted(cases, key=lambda c: c.updated_at or datetime.min, reverse=True)
+        # Newest first; ties (e.g. demos seeded in the same second) by id, for a stable order.
+        return sorted(cases, key=lambda c: (c.updated_at or datetime.min, c.id or ""), reverse=True)
 
     def get_case(self, case_id: str) -> CaseStudy:
         path = self._case_path(case_id)
@@ -151,36 +153,85 @@ class Workspace:
 
     # --- seed ---------------------------------------------------------------------------------
 
-    def seed_demo_case(self) -> CaseStudy | None:
-        """Create a demo case on first start so the app is not empty."""
-        if any(self.cases_dir.glob("*/case.json")):
+    @property
+    def seeded_marker(self) -> Path:
+        return self.root / ".seeded.json"
+
+    def _read_seeded(self) -> set[str] | None:
+        try:
+            return set(read_json(self.seeded_marker)["seeded"])
+        except FileNotFoundError:
             return None
-        demo = CaseStudy(
-            name="Vision MV – summer week",
-            description="Demo: one summer week on the Vision MV validation network with "
-            "residential load and PV profiles.",
-            network=NetworkRef(source="sample", key="vision_mv"),
-            time=TimeSettings(
-                start=datetime(2026, 7, 1), end=datetime(2026, 7, 8), resolution_minutes=15
+        except (ValueError, KeyError, TypeError):  # unreadable marker: treat as missing
+            return None
+
+    def seed_demo_cases(self, reseed_deleted: bool = False) -> list[CaseStudy]:
+        """Create the bundled demo cases this workspace has not had yet; return the new ones.
+
+        `.seeded.json` lists the demo ids seeded once, so a demo the user deleted is not
+        re-created (unless `reseed_deleted`). A case with a demo's id is never overwritten.
+        A workspace from before the marker existed that has cases already had the original
+        demo seeded once (it was seeded whenever the workspace was empty).
+        """
+        before = self._read_seeded()
+        if before is not None:
+            seeded = before
+        elif any(self.cases_dir.glob("*/case.json")):
+            seeded = {LEGACY_DEMO_ID}
+        else:
+            seeded = set()
+        skip = set() if reseed_deleted else seeded
+        created: list[CaseStudy] = []
+        # Created in id order, so the newest-first list shows the original demo on top, then the
+        # others by id descending, even if seeding crosses a second boundary.
+        for demo in sorted(demo_cases(), key=lambda d: d.id or ""):
+            assert demo.id
+            if demo.id in skip:
+                continue
+            seeded = seeded | {demo.id}
+            if not self._case_path(demo.id).exists():
+                created.append(self.create_case(demo))
+        if seeded != before:
+            write_json_atomic(self.seeded_marker, {"seeded": sorted(seeded)})
+        return created
+
+
+LEGACY_DEMO_ID = "vision-mv-summer-week"
+DEMO_CASES_DIR = Path(__file__).resolve().parent / "samples" / "cases"
+
+
+def demo_cases() -> list[CaseStudy]:
+    """The bundled demo cases: the original summer week plus `samples/cases/*.json`."""
+    legacy = CaseStudy(
+        id=LEGACY_DEMO_ID,
+        name="Vision MV – summer week",
+        description="Demo: one summer week on the Vision MV validation network with "
+        "residential load and PV profiles.",
+        network=NetworkRef(source="sample", key="vision_mv"),
+        time=TimeSettings(
+            start=datetime(2026, 7, 1), end=datetime(2026, 7, 8), resolution_minutes=15
+        ),
+        profile_assignments=[
+            ProfileAssignment(
+                id="a1",
+                label="Household load",
+                generator="residential_load",
+                params={"seed": 1},
+                target=ProfileTarget(component="sym_load"),
             ),
-            profile_assignments=[
-                ProfileAssignment(
-                    id="a1",
-                    label="Household load",
-                    generator="residential_load",
-                    params={"seed": 1},
-                    target=ProfileTarget(component="sym_load"),
-                ),
-                ProfileAssignment(
-                    id="a2",
-                    label="Solar PV",
-                    generator="pv",
-                    params={"seed": 2},
-                    target=ProfileTarget(component="sym_gen"),
-                ),
-            ],
-        )
-        return self.create_case(demo)
+            ProfileAssignment(
+                id="a2",
+                label="Solar PV",
+                generator="pv",
+                params={"seed": 2},
+                target=ProfileTarget(component="sym_gen"),
+            ),
+        ],
+    )
+    bundled = [
+        CaseStudy.model_validate(read_json(p)) for p in sorted(DEMO_CASES_DIR.glob("*.json"))
+    ]
+    return [legacy, *bundled]
 
 
 _current: Workspace | None = None

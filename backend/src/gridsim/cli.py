@@ -1,4 +1,4 @@
-"""Command line interface: `gridsim serve | run | cases | export-openapi`."""
+"""Command line interface: `gridsim serve | run | cases | seed-demos | export-openapi`."""
 
 from __future__ import annotations
 
@@ -74,9 +74,19 @@ def run(case: Annotated[str, typer.Argument(help="Path to a case JSON file or a 
 def cases() -> None:
     """List cases in the workspace."""
     ws = get_workspace()
-    ws.seed_demo_case()
+    ws.seed_demo_cases()
     for c in ws.list_cases():
         typer.echo(f"{c.id:40s} {c.name}  [{c.network.source}/{c.network.key}]")
+
+
+@app.command("seed-demos")
+def seed_demos() -> None:
+    """Re-create the bundled demo cases that are missing (also ones you deleted)."""
+    created = get_workspace().seed_demo_cases(reseed_deleted=True)
+    for c in created:
+        typer.echo(f"Created {c.id}: {c.name}")
+    if not created:
+        typer.echo("All demo cases are present.")
 
 
 @app.command("export-openapi")

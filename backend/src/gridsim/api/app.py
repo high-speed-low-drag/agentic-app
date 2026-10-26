@@ -77,7 +77,7 @@ def create_app(workspace_root: Path | str | None = None, max_workers: int = 1) -
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        ws.seed_demo_case()
+        ws.seed_demo_cases()
         app.state.runner = RunManager(ws, max_workers=max_workers)
         try:
             yield
