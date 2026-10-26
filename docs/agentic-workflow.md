@@ -38,6 +38,12 @@ new session, so a fresh session knows where things stand without being told.
    and two agents never race on the git index.
 6. **Bounded tasks.** Each task should fit comfortably in one agent run. Split
    anything bigger. Run at most 2 sub-agents in parallel to stay within usage limits.
+   **Choose the cheapest model that can do the task well:**
+   - `haiku` for mechanical, fully specified edits;
+   - `sonnet` for standard feature work, tests and docs;
+   - `opus` for design-heavy or cross-cutting work and hard debugging.
+
+   Record the model in the ledger row or brief. If a cheaper model fails the done check, escalate one tier.
 7. **Keep the orchestrator's context lean.** Agents return short reports, and
    details go into their journals. That way the orchestrator survives compaction.
 

@@ -49,6 +49,8 @@ Follow `docs/agentic-workflow.md`:
 - **Go-ahead gate:** before sending a task to build, give the user a 1–2 paragraph brief: what changes and why,
   the approach and trade-offs, the files touched, and how it is verified. Then wait for the user's explicit
   go-ahead. Each task needs its own approval.
+- **Model choice:** use the cheapest sub-agent model that can do the task well (haiku for mechanical edits,
+  sonnet for standard work, opus for design or hard debugging). See `docs/agentic-workflow.md`.
 - The ledger `.agent/LEDGER.md` is the plan and status.
 - Briefs go in `.agent/briefs/`, and journals in `.agent/progress/`.
 - Only the orchestrator commits `checkpoint(<id>)` after the task's done check passes.
