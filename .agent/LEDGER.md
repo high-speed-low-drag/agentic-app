@@ -46,6 +46,7 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 | T21 | GitHub Actions CI: make check + make e2e on PRs | in_progress | T20 | .github/, frontend/playwright.config.ts, Makefile, README | local CI=1 make check && make e2e; then first CI run on PR #6 green |
 | T22 | project.md: self-contained rebuild spec for another agent | done | T21 | project.md | completeness cross-check (views, routes, e2e specs, editable fields) |
 | T23 | Rewrite project.md as product/feature spec (what, not how) | done | T22 | project.md | every user-visible feature covered; tech-agnostic |
+| T26 | Fix CI: pin astral-sh/setup-uv to v10.3.2 | in_progress | T21 | .github/workflows/ci.yml | first real CI run green |
 
 ## Log
 - 2026-10-26: profile scale factor shipped (d1d031c). T6 approved by user; sub-agent started.
@@ -124,3 +125,5 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 - D1 done: 3 cases verified headless by orchestrator (summer PV: u_max 1.060, load 115%, 120 V + 49 L episodes; winter peak: u_min 0.921, load 141%, 7 V + 78 L; IEEE14 N-1: load 151%, 48 L, 0 V); 0 failed timesteps. Case JSONs in scratchpad d1/. D2 brief pending go-ahead.
 - D2 approved by user (keep existing summer-week demo); sub-agent started.
 - D2 done: make check (69 pytest, 95 vitest) + make e2e (23/23) verified. Note: user's running make dev (--reload) seeded the 3 demos into the worktree workspace during the build (intended behaviour). CI fix (setup-uv tag) briefed, awaiting go-ahead.
+- T26 approved by user (Auto-fix stays off); sub-agent started.
+- T26 committed + pushed; first real CI run triggered.
