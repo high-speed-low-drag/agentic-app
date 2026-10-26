@@ -31,6 +31,7 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 | T6 | In-cell editing of equipment parameters (per-case overrides, amber cells, revert) | done | – | backend/, frontend/, docs/api-contract.md | `make check && make e2e` |
 | T7 | Click-to-row: diagram ↔ table jump, flash, filters cleared, reverse centring | done | T6 | frontend/ | `make check && make e2e` |
 | T8 | Diagram clicks select quietly; only Edit in table jumps | done | T7 | frontend/ | `make check && make e2e` |
+| T9 | Bug: show override-applied equipment values in profiles list and details panel | in_progress | T8 | frontend/ | `make check && make e2e` |
 
 ## Log
 - 2026-10-26: profile scale factor shipped (d1d031c). T6 approved by user; sub-agent started.
@@ -39,3 +40,4 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 - T7 done (resumed after usage limit): make check (55 pytest, 26 vitest) + make e2e (7/7) verified by orchestrator; screenshots reviewed.
 - T8 approved by user; sub-agent started.
 - T8 done: make check (55 pytest, 31 vitest) + make e2e (8/8) verified by orchestrator.
+- T9 (bug fix) approved by user; sub-agent started.
