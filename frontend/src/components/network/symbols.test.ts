@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   externalGridSvg,
   generatorSvg,
+  notEnergisedSvg,
   quantisedAngle,
   symbolScale,
   shuntKind,
@@ -54,6 +55,15 @@ describe('symbols', () => {
     expect(transformer3Svg([HV, LV, HV], P, { off: true })).not.toContain(HV)
   })
 
+  it('draws the not-energised cross in the muted colour only', () => {
+    const s = notEnergisedSvg(P)
+    expect(s).toContain(`stroke="${P.muted}"`)
+    expect(s).not.toContain(P.stroke)
+    expect(s).not.toContain(P.surface)
+    expect(s.match(/M[\d.]+ [\d.]+L/g)?.length).toBe(2) // two strokes: a ×
+    expect(notEnergisedSvg({ muted: '#8f8d86' })).toContain('#8f8d86')
+  })
+
   it('produces valid SVG data URIs', () => {
     const uris = [
       symbolUri.transformer(HV, LV, P),
@@ -61,6 +71,7 @@ describe('symbols', () => {
       symbolUri.generator(P),
       symbolUri.externalGrid(P),
       symbolUri.shunt('reactor', P),
+      symbolUri.notEnergised(P),
     ]
     for (const u of uris) {
       expect(u.startsWith('data:image/svg+xml')).toBe(true)

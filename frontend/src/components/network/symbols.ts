@@ -126,6 +126,14 @@ export function shuntSvg(kind: ShuntKind, p: SymbolPalette, opts: SymbolOptions 
   return svg(24, bg + body)
 }
 
+/**
+ * "Not energised" mark for a bus node: a small × through the centre, in the muted colour, on a
+ * transparent background (the node itself draws the dashed muted ring).
+ */
+export function notEnergisedSvg(p: Pick<SymbolPalette, 'muted'>): string {
+  return svg(24, `<path d="M6.5 6.5L17.5 17.5M17.5 6.5L6.5 17.5" fill="none" stroke="${p.muted}" stroke-width="3" stroke-linecap="round"/>`)
+}
+
 /** Data-URI convenience wrappers. */
 export const symbolUri = {
   transformer: (from: string, to: string, p: SymbolPalette, opts?: SymbolOptions & { angle?: number }) =>
@@ -135,6 +143,7 @@ export const symbolUri = {
   generator: (p: SymbolPalette, opts?: SymbolOptions) => svgDataUri(generatorSvg(p, opts)),
   externalGrid: (p: SymbolPalette, opts?: SymbolOptions) => svgDataUri(externalGridSvg(p, opts)),
   shunt: (kind: ShuntKind, p: SymbolPalette, opts?: SymbolOptions) => svgDataUri(shuntSvg(kind, p, opts)),
+  notEnergised: (p: Pick<SymbolPalette, 'muted'>) => svgDataUri(notEnergisedSvg(p)),
 }
 
 /** Symbols keep a rendered size between these multiples of their base size, whatever the zoom. */

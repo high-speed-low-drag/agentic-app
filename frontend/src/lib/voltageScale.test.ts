@@ -30,8 +30,8 @@ const base: Omit<ChartTheme, 'dark' | 'voltUnder' | 'voltMid' | 'voltOver' | 'ax
 
 // Token values from index.css, light and dark.
 const themes: Record<string, ChartTheme> = {
-  light: { ...base, dark: false, axis: '#c3c2b7', voltUnder: '#2a78d6', voltMid: '#f4f3ef', voltOver: '#d03b3b' },
-  dark: { ...base, dark: true, axis: '#45443f', voltUnder: '#3987e5', voltMid: '#2a2a28', voltOver: '#e66767' },
+  light: { ...base, dark: false, axis: '#c3c2b7', voltUnder: '#2a78d6', voltMid: '#d6d5cf', voltOver: '#d03b3b' },
+  dark: { ...base, dark: true, axis: '#45443f', voltUnder: '#3987e5', voltMid: '#5a5954', voltOver: '#e66767' },
 }
 
 const rgb = (s: string) => {

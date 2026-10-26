@@ -42,7 +42,7 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 | T17 | Smaller bus nodes (~9 px), scaled rings, keep click area | done | T16 | frontend/ | `make check && make e2e` |
 | T18 | User-defined 4-point voltage colour scale (browser setting) | done | T17 | frontend/ | `make check && make e2e` |
 | T19 | Time series limit lines always visible (axis includes limits) | done | T18 | frontend/ | `make check && make e2e` |
-| T20 | Neutral (within-band) vs not-energised nodes distinct | in_progress | T19 | frontend/ | `make check && make e2e` |
+| T20 | Neutral (within-band) vs not-energised nodes distinct | done | T19 | frontend/ | `make check && make e2e` |
 
 ## Log
 - 2026-10-26: profile scale factor shipped (d1d031c). T6 approved by user; sub-agent started.
@@ -76,3 +76,4 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 - T18 done: make check (59 pytest, 85 vitest) + make e2e (20/20) verified; screenshots reviewed. Noted: neutral near-white nodes look similar to hollow 'not energised' nodes in light mode. T19 sub-agent started.
 - T19 done: make check (59 pytest, 94 vitest) + make e2e (21/21) verified. Neutral vs not-energised fix briefed, awaiting go-ahead.
 - T20 approved by user; sub-agent started.
+- T20 done: make check (59 pytest, 95 vitest) + make e2e (22/22) verified; screenshots reviewed. PV investigation: demo case applies PV in scale mode on loads (multiplies demand); PV-scale-on-loads warning offered, awaiting decision.

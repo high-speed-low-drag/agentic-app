@@ -25,7 +25,7 @@ export function VoltageScaleLegend({ theme, limits }: { theme: ChartTheme; limit
       <div className="flex flex-col">
         <div className="flex h-2 w-40 overflow-hidden rounded-sm">
           <span className="flex-1" style={{ background: `linear-gradient(90deg, ${theme.voltUnder}, ${edgeUnder})` }} />
-          <span className="flex-1 border-y border-border" style={{ background: theme.voltMid }} title="within band" />
+          <span data-testid="voltage-legend-band" className="flex-1" style={{ background: theme.voltMid }} title="within band" />
           <span className="flex-1" style={{ background: `linear-gradient(90deg, ${edgeOver}, ${theme.voltOver})` }} />
         </div>
         <div className="relative mt-0.5 h-3 w-40 text-[10px] text-fg-muted tabular">

@@ -88,7 +88,7 @@ const NODE_CHANGED_BORDER = 2
 const NODE_SELECTED_BORDER = 2
 /** Selection halo padding around a bus node (edges keep their own). */
 const NODE_SELECTED_OVERLAY = 3
-/** "Not energised" hollow ring. */
+/** "Not energised" dashed ring. */
 const NODE_HOLLOW_BORDER = 1.5
 /** Gap between the dot and its label. */
 const NODE_LABEL_MARGIN = 1.5
@@ -231,10 +231,24 @@ function stylesheet(t: ChartTheme, resultNodes = false): StylesheetJson {
       style: { 'underlay-color': t.warn, 'underlay-opacity': 0.55, 'underlay-padding': 4 } as never,
     },
     // status cues come last so they win over the overlay colour/width and the changed halo
+    // not energised: no fill, dashed muted ring, a muted × through the centre, italic muted label
     {
       selector: 'node[kind = "node"][energised = 0]',
-      style: { 'background-opacity': 0, 'border-width': NODE_HOLLOW_BORDER, 'border-color': t.muted, 'border-opacity': 1 },
+      style: {
+        'background-opacity': 0,
+        'background-image': symbolUri.notEnergised(symbolPalette(t)),
+        'background-fit': 'contain',
+        'background-clip': 'none',
+        'border-width': NODE_HOLLOW_BORDER,
+        'border-style': 'dashed',
+        'border-color': t.muted,
+        'border-opacity': 1,
+        color: t.muted,
+        'font-style': 'italic',
+      } as never,
     },
+    // edited and not energised: the dashed ring turns amber (keeps the larger changed size)
+    { selector: 'node[kind = "node"][energised = 0].changed', style: { 'border-color': t.warn, 'border-width': NODE_CHANGED_BORDER } },
     {
       selector: 'node.appliance[in_service = 0], node.hub[in_service = 0]',
       style: { 'background-opacity': 0, 'border-width': 1.2, 'border-color': t.muted, 'border-opacity': 1 },

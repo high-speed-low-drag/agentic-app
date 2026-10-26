@@ -78,8 +78,12 @@ export function StatusLegend({ topology, theme }: { topology: NetworkTopology; t
       )}
       {islanded && (
         <span className="inline-flex items-center gap-1">
-          <span className="inline-block size-2.5 rounded-full border-2" style={{ borderColor: theme.muted }} />
-          {ISLANDED_TIP}
+          <span
+            data-testid="legend-not-energised"
+            className="inline-block size-2.5 rounded-full border-[1.5px] border-dashed bg-center bg-no-repeat"
+            style={{ borderColor: theme.muted, backgroundImage: `url("${symbolUri.notEnergised(theme)}")`, backgroundSize: '100%' }}
+          />
+          <span className="italic">{ISLANDED_TIP}</span>
         </span>
       )}
     </span>

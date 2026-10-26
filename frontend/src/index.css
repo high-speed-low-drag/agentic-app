@@ -45,7 +45,7 @@
   --c-series-8: #e34948;
   /* voltage scale (under = blue, mid = neutral band, over = red); the node ring keeps mid visible */
   --c-volt-under: #2a78d6;
-  --c-volt-mid: #f4f3ef;
+  --c-volt-mid: #d6d5cf;
   --c-volt-over: #d03b3b;
   /* day/night clock and slider: daylight (warm) and night (muted) */
   --c-daylight: #f2c35b;
@@ -89,7 +89,7 @@
     --c-series-7: #9085e9;
     --c-series-8: #e66767;
     --c-volt-under: #3987e5;
-    --c-volt-mid: #2a2a28;
+    --c-volt-mid: #5a5954;
     --c-volt-over: #e66767;
     --c-daylight: #b98220;
     --c-night: #3d3d39;
@@ -132,7 +132,7 @@
   --c-series-7: #9085e9;
   --c-series-8: #e66767;
   --c-volt-under: #3987e5;
-  --c-volt-mid: #2a2a28;
+  --c-volt-mid: #5a5954;
   --c-volt-over: #e66767;
   --c-daylight: #b98220;
   --c-night: #3d3d39;
