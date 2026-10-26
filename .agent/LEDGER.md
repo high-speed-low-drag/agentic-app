@@ -44,6 +44,7 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 | T19 | Time series limit lines always visible (axis includes limits) | done | T18 | frontend/ | `make check && make e2e` |
 | T20 | Neutral (within-band) vs not-energised nodes distinct | done | T19 | frontend/ | `make check && make e2e` |
 | T21 | GitHub Actions CI: make check + make e2e on PRs | in_progress | T20 | .github/, frontend/playwright.config.ts, Makefile, README | local CI=1 make check && make e2e; then first CI run on PR #6 green |
+| T22 | project.md: self-contained rebuild spec for another agent | in_progress | T21 | project.md | completeness cross-check (views, routes, e2e specs, editable fields) |
 
 ## Log
 - 2026-10-26: profile scale factor shipped (d1d031c). T6 approved by user; sub-agent started.
@@ -81,3 +82,4 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 - Issue #5 raised (deferred): warn on PV scale mode on loads.
 - PR #6 opened. T21 (CI) approved by user; sub-agent started.
 - T21 committed + pushed to PR #6 after local verification (59 pytest, 95 vitest, 22/22 e2e). Awaiting first CI run. Known flaky: node-size.spec 'clear selection' click can hit an appliance.
+- T22 (project.md) requested by user; sub-agent started.
