@@ -46,7 +46,8 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 | T21 | GitHub Actions CI: make check + make e2e on PRs | in_progress | T20 | .github/, frontend/playwright.config.ts, Makefile, README | local CI=1 make check && make e2e; then first CI run on PR #6 green |
 | T22 | project.md: self-contained rebuild spec for another agent | done | T21 | project.md | completeness cross-check (views, routes, e2e specs, editable fields) |
 | T23 | Rewrite project.md as product/feature spec (what, not how) | done | T22 | project.md | every user-visible feature covered; tech-agnostic |
-| T26 | Fix CI: pin astral-sh/setup-uv to v10.3.2 | in_progress | T21 | .github/workflows/ci.yml | first real CI run green |
+| T26 | Fix CI: pin astral-sh/setup-uv to v10.3.2 | done | T21 | .github/workflows/ci.yml | first real CI run green |
+| T27 | CI fix: click fallback near crowded nodes + robust node-size e2e | in_progress | T26 | frontend/ | make check && make e2e; CI run green |
 
 ## Log
 - 2026-10-26: profile scale factor shipped (d1d031c). T6 approved by user; sub-agent started.
@@ -127,3 +128,4 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 - D2 done: make check (69 pytest, 95 vitest) + make e2e (23/23) verified. Note: user's running make dev (--reload) seeded the 3 demos into the worktree workspace during the build (intended behaviour). CI fix (setup-uv tag) briefed, awaiting go-ahead.
 - T26 approved by user (Auto-fix stays off); sub-agent started.
 - T26 committed + pushed; first real CI run triggered.
+- T26 done (setup passes; CI: make check green, e2e 22/23). T27 approved by user; sub-agent started.
