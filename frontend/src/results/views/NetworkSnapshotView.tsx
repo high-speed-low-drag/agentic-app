@@ -19,14 +19,20 @@ import {
 import { changedElements } from '../../components/network/overrides'
 import { EmptyState, ErrorState, IconButton, LoadingState, Segmented, Spinner } from '../../components/ui'
 import { fmtDateTime, fmtPct, fmtPu, toDate } from '../../lib/format'
+import { solarSource } from '../../lib/solar'
 import { toNaive } from '../../lib/time'
+import { useElementWidth } from '../../lib/useElementWidth'
 import { timestepTime } from '../timestamps'
 import type { ResultViewProps } from '../types'
 import { useRunContext } from '../useRunContext'
+import { DaylightTrack } from './DaylightTrack'
 import { BASE_STEP_MS, DEFAULT_MULTIPLIER, nextFrameDelay, playbackSpeeds } from './playback'
+import { SnapshotClock } from './SnapshotClock'
 
 const SPEEDS = playbackSpeeds()
 const SPEED_OPTIONS = SPEEDS.map(({ value, label }) => ({ value, label }))
+/** Below this diagram width the clock collapses to the digital time. */
+const CLOCK_COMPACT_PX = 560
 
 /** Network diagram coloured by the results at one timestep, with a time slider and playback. */
 export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
@@ -47,6 +53,10 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
   const snap = useSnapshot(runId, t)
   const queryClient = useQueryClient()
   const prefetch = SPEEDS.find((s) => s.value === speed)?.prefetch ?? 2
+  const [diagramRef, diagramWidth] = useElementWidth<HTMLDivElement>()
+  // daylight from the frozen case's first PV profile (latitude, solar noon), else the PV defaults
+  const assignments = ctx.case?.profile_assignments
+  const solar = useMemo(() => solarSource(assignments), [assignments])
 
   // playback never skips a frame: advance only once the current timestep's own snapshot is shown, and aim
   // for `speed` ms after it was shown, so (pre)fetch time does not add to the interval for cached frames
@@ -125,15 +135,23 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
         />
         <IconButton size="sm" label="Previous timestep" icon={<ChevronLeft size={14} />} onClick={() => setT((x) => Math.max(0, x - 1))} />
         <IconButton size="sm" label="Next timestep" icon={<ChevronRight size={14} />} onClick={() => setT((x) => Math.min(n - 1, x + 1))} />
-        <input
-          type="range"
-          aria-label="Timestep"
-          min={0}
-          max={Math.max(0, n - 1)}
-          value={t}
-          onChange={(e) => setT(Number(e.target.value))}
-          className="min-w-40 flex-1 accent-[var(--c-accent)]"
-        />
+        <DaylightTrack
+          className="min-w-40 flex-1"
+          startMs={timestepTime(summary, 0)}
+          stepMs={summary.resolution_minutes * 60_000}
+          n={n}
+          source={solar}
+        >
+          <input
+            type="range"
+            aria-label="Timestep"
+            min={0}
+            max={Math.max(0, n - 1)}
+            value={t}
+            onChange={(e) => setT(Number(e.target.value))}
+            className="block w-full accent-[var(--c-accent)]"
+          />
+        </DaylightTrack>
         <div className="w-44 text-right text-xs">
           <div className="font-medium text-fg tabular">{fmtDateTime(snap.data?.timestamp ?? toNaive(new Date(timestepTime(summary, t))))}</div>
           <div className="text-fg-muted tabular" data-testid="snapshot-step">
@@ -144,32 +162,37 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
       </div>
       {snap.error && <ErrorState error={snap.error} title="Could not load snapshot" />}
       <div className="grid gap-3 lg:grid-cols-[1fr_260px]">
-        <NetworkDiagram
-          topology={ctx.fileTopology}
-          changed={changed}
-          statusTopology={ctx.topology}
-          overlay={overlay}
-          overlayKey={t}
-          selected={selected}
-          onSelect={setSelected}
-          showAppliances={false}
-          height={540}
-          legend={
-            <div className="flex flex-wrap items-center gap-4">
-              <GradientLegend
-                label="u"
-                stops={[theme.voltUnder, theme.voltMid, theme.voltOver]}
-                ticks={['0.92', '1.00', '1.08']}
-              />
-              <GradientLegend
-                label="loading"
-                stops={[loadingColor(0, theme), loadingColor(0.6, theme), loadingColor(1, theme), loadingColor(1.2, theme)]}
-                ticks={['0%', '60%', '100%', '120%']}
-              />
-              <StatusLegend topology={ctx.topology} theme={theme} />
-            </div>
-          }
-        />
+        <div ref={diagramRef} className="min-w-0">
+          <NetworkDiagram
+            topology={ctx.fileTopology}
+            changed={changed}
+            statusTopology={ctx.topology}
+            overlay={overlay}
+            overlayKey={t}
+            selected={selected}
+            onSelect={setSelected}
+            showAppliances={false}
+            height={540}
+            legend={
+              <div className="flex flex-wrap items-center gap-4">
+                <GradientLegend
+                  label="u"
+                  stops={[theme.voltUnder, theme.voltMid, theme.voltOver]}
+                  ticks={['0.92', '1.00', '1.08']}
+                />
+                <GradientLegend
+                  label="loading"
+                  stops={[loadingColor(0, theme), loadingColor(0.6, theme), loadingColor(1, theme), loadingColor(1.2, theme)]}
+                  ticks={['0%', '60%', '100%', '120%']}
+                />
+                <StatusLegend topology={ctx.topology} theme={theme} />
+              </div>
+            }
+            corner={
+              <SnapshotClock ms={timestepTime(summary, t)} source={solar} compact={diagramWidth > 0 && diagramWidth < CLOCK_COMPACT_PX} />
+            }
+          />
+        </div>
         <div className="rounded-md border border-border bg-surface p-3">
           {sel ? (
             <ElementDetails

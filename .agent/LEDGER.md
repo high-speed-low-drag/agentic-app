@@ -36,7 +36,7 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 | T11 | Snapshot playback 8×/16×, proportional speeds, prefetch | done | – | frontend/ | `make check && make e2e` |
 | T12 | Strong out-of-service cue (branches, appliances, islanded nodes) in both diagrams | done | T11 | frontend/ | `make check && make e2e` |
 | T13 | Voltage colours: overvoltage red, undervoltage blue | done | T12 | frontend/ | `make check && make e2e` |
-| T14 | Snapshot 24h day/night clock + daylight-shaded slider | in_progress | T13 | frontend/ | `make check && make e2e` |
+| T14 | Snapshot 24h day/night clock + daylight-shaded slider | done | T13 | frontend/ | `make check && make e2e` |
 
 ## Log
 - 2026-10-26: profile scale factor shipped (d1d031c). T6 approved by user; sub-agent started.
@@ -57,3 +57,4 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 - T12 done: make check (58 pytest, 48 vitest) + make e2e (12/12) verified; screenshots reviewed. T13 sub-agent started.
 - T14 approved by user; queued until T13 is committed. Issue #3 raised (deferred): zoomable timeline.
 - T13 done: make check (58 pytest, 58 vitest) + make e2e (12/12) verified. Orchestrator's commit -a swept T13 WIP into a brief commit; split it before checkpointing, and added an explicit-paths rule to docs/agentic-workflow.md. T14 sub-agent started.
+- T14 done: make check (58 pytest, 69 vitest) + make e2e (13/13) verified; screenshots reviewed. Noted: toolbar time uses 12h AM/PM while clock uses 24h; clock card covers part of diagram.

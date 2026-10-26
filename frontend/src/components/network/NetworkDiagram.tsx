@@ -60,6 +60,8 @@ export interface NetworkDiagramProps {
   height?: number | string
   className?: string
   legend?: ReactNode
+  /** Non-interactive overlay at the bottom-right, opposite the legend (which then wraps to leave it room). */
+  corner?: ReactNode
   /** Elements to mark as changed (amber ring/halo), as `kind:id` keys, e.g. "branch:47". */
   changed?: Set<string>
   /**
@@ -214,6 +216,7 @@ export function NetworkDiagram({
   height = 480,
   className,
   legend,
+  corner,
   changed,
   statusTopology,
   ref: handleRef,
@@ -424,9 +427,16 @@ export function NetworkDiagram({
           <Maximize2 size={14} />
         </button>
       </div>
-      {legend && (
-        <div className="pointer-events-none absolute bottom-2 left-2 max-w-[70%] rounded-md border border-border bg-surface/90 px-2.5 py-1.5 text-xs text-fg-2 shadow-sm backdrop-blur">
-          {legend}
+      {(legend || corner) && (
+        <div className="pointer-events-none absolute inset-x-2 bottom-2 flex items-end justify-between gap-2">
+          {legend ? (
+            <div className="max-w-[70%] min-w-0 rounded-md border border-border bg-surface/90 px-2.5 py-1.5 text-xs text-fg-2 shadow-sm backdrop-blur">
+              {legend}
+            </div>
+          ) : (
+            <span />
+          )}
+          {corner && <div className="shrink-0">{corner}</div>}
         </div>
       )}
     </div>
