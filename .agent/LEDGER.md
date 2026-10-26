@@ -119,6 +119,7 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 | id | task | status | deps | owns | done check |
 |----|------|--------|------|------|------------|
 | D1 | Explore 2–3 demo-ready cases (Vision MV summer PV, Vision MV winter peak, IEEE 14 rated) with visible voltage/loading violations | done | – | scratchpad only (no app code, no user workspace) | each case runs with 0 failed timesteps and shows violations; results reported |
-| D2 | Ship the chosen demo cases in the app (e.g. seeded demo cases) | todo (needs a brief and the user's go-ahead) | D1 | backend workspace seed, tests | make check && make e2e |
+| D2 | Ship the chosen demo cases in the app (e.g. seeded demo cases) | in_progress | D1 | backend workspace seed, tests | make check && make e2e |
 - 2026-10-27: D1 requested by the user ("start now"); exploration sub-agent started. Shipping (D2) is gated on the user's go-ahead.
 - D1 done: 3 cases verified headless by orchestrator (summer PV: u_max 1.060, load 115%, 120 V + 49 L episodes; winter peak: u_min 0.921, load 141%, 7 V + 78 L; IEEE14 N-1: load 151%, 48 L, 0 V); 0 failed timesteps. Case JSONs in scratchpad d1/. D2 brief pending go-ahead.
+- D2 approved by user (keep existing summer-week demo); sub-agent started.
