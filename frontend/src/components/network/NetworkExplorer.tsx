@@ -1,11 +1,14 @@
 import { MousePointerClick } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { flushSync } from 'react-dom'
 import type { NetworkTopology } from '../../api/schema'
+import { cn } from '../../lib/utils'
 import { useChartTheme } from '../charts/theme'
 import { Checkbox, Select } from '../ui'
 import { ElementDetails } from './ElementDetails'
 import type { ElementTableEditing } from './ElementTable'
 import { ElementTable } from './ElementTable'
+import { ExpandableNetwork } from './ExpandableNetwork'
 import { TopologyLegend } from './Legend'
 import type { DiagramLayout } from './NetworkDiagram'
 import { NetworkDiagram } from './NetworkDiagram'
@@ -24,7 +27,10 @@ export function NetworkExplorer({
   topology,
   effective: effectiveProp,
   editing,
+  title,
 }: {
+  /** Shown in the header of the expanded view, before "Network" (the case name). */
+  title?: string
   topology: NetworkTopology
   effective?: EffectiveTopology
   editing?: ElementTableEditing
@@ -40,54 +46,71 @@ export function NetworkExplorer({
 
   return (
     <div className="grid grid-cols-1 gap-4">
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2 text-xs text-fg-2">
-          Layout
-          <Select<DiagramLayout>
-            className="w-40"
-            value={layout}
-            onChange={setLayout}
-            options={[
-              { value: 'auto', label: 'Auto' },
-              { value: 'tree', label: 'Radial tree (from source)' },
-              { value: 'force', label: 'Force-directed' },
-            ]}
-          />
-        </div>
-        <Checkbox checked={showAppliances} onChange={setShowAppliances} label={<span className="text-xs text-fg-2">Show appliances</span>} />
-      </div>
-      <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
-        <NetworkDiagram
-          ref={diagramRef}
-          topology={topology}
-          selected={selected}
-          onSelect={(r) => focusElement(r, 'diagram')}
-          layout={layout}
-          showAppliances={showAppliances}
-          height={520}
-          legend={<TopologyLegend topology={topology} theme={theme} changed={changed.size > 0} status={effective.topology} />}
-          changed={changed}
-          statusTopology={effective.topology}
-        />
-        <div className="rounded-md border border-border bg-surface p-3">
-          {selected ? (
-            <ElementDetails
-              topology={effective.topology}
-              edits={effective}
-              selected={selected}
-              onSelect={(r) => focusElement(r, 'details')}
-              onClose={() => focusElement(null, 'details')}
-              onShowInTable={revealInTable}
-              showInTableLabel={editing ? 'Edit in table' : 'Show in table'}
-            />
-          ) : (
-            <div className="flex h-full min-h-32 flex-col items-center justify-center gap-2 text-center text-xs text-fg-muted">
-              <MousePointerClick size={18} />
-              Click an element in the diagram or table to see its details.
+      <ExpandableNetwork title={title ? `${title} · Network` : 'Network'} className="grid grid-cols-1 gap-4">
+        {({ expanded, collapse }) => (
+          <>
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2 text-xs text-fg-2">
+                Layout
+                <Select<DiagramLayout>
+                  className="w-40"
+                  value={layout}
+                  onChange={setLayout}
+                  options={[
+                    { value: 'auto', label: 'Auto' },
+                    { value: 'tree', label: 'Radial tree (from source)' },
+                    { value: 'force', label: 'Force-directed' },
+                  ]}
+                />
+              </div>
+              <Checkbox checked={showAppliances} onChange={setShowAppliances} label={<span className="text-xs text-fg-2">Show appliances</span>} />
             </div>
-          )}
-        </div>
-      </div>
+            <div
+              className={cn(
+                'grid gap-4',
+                expanded
+                  ? 'min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_280px] lg:grid-rows-[minmax(0,1fr)]'
+                  : 'lg:grid-cols-[1fr_280px]',
+              )}
+            >
+              <NetworkDiagram
+                ref={diagramRef}
+                topology={topology}
+                selected={selected}
+                onSelect={(r) => focusElement(r, 'diagram')}
+                layout={layout}
+                showAppliances={showAppliances}
+                height={520}
+                legend={<TopologyLegend topology={topology} theme={theme} changed={changed.size > 0} status={effective.topology} />}
+                changed={changed}
+                statusTopology={effective.topology}
+              />
+              <div className={cn('rounded-md border border-border bg-surface p-3', expanded && 'max-h-48 min-h-0 overflow-auto overscroll-contain lg:max-h-none')}>
+                {selected ? (
+                  <ElementDetails
+                    topology={effective.topology}
+                    edits={effective}
+                    selected={selected}
+                    onSelect={(r) => focusElement(r, 'details')}
+                    onClose={() => focusElement(null, 'details')}
+                    onShowInTable={(r) => {
+                      // the table is behind the overlay: collapse (synchronously) before jumping to its row
+                      if (expanded) flushSync(() => collapse({ restoreFocus: false }))
+                      revealInTable(r)
+                    }}
+                    showInTableLabel={editing ? 'Edit in table' : 'Show in table'}
+                  />
+                ) : (
+                  <div className="flex h-full min-h-32 flex-col items-center justify-center gap-2 text-center text-xs text-fg-muted">
+                    <MousePointerClick size={18} />
+                    Click an element in the diagram or table to see its details.
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+      </ExpandableNetwork>
       <ElementTable
         ref={tableRef}
         topology={topology}

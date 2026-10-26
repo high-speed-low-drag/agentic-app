@@ -1,7 +1,7 @@
 import type { Core, LayoutOptions, NodeSingular, SingularElementArgument, StylesheetJson } from 'cytoscape'
 import cytoscape from 'cytoscape'
 import fcose from 'cytoscape-fcose'
-import { Maximize2, Minus, Plus } from 'lucide-react'
+import { Maximize, Minus, Plus, Scan } from 'lucide-react'
 import type { ReactNode, Ref } from 'react'
 import { useEffect, useImperativeHandle, useMemo, useRef } from 'react'
 import type { NetworkTopology } from '../../api/schema'
@@ -11,6 +11,7 @@ import { useChartTheme } from '../charts/theme'
 import type { ElementRef } from './graph'
 import { branchTypeColor, buildElements, cyId, parseCyId, rootNodeIds, voltageColor, voltageLevels } from './graph'
 import { branchInService, energisedNodes, ISLANDED_TIP, OOS_LABEL, OOS_TIP, OOS_WIDTH } from './energised'
+import { useDiagramExpand } from './expandContext'
 import { focusZoom, prefersReducedMotion } from './selection'
 import type { ShuntKind, SymbolPalette } from './symbols'
 import { quantisedAngle, symbolScale, symbolUri } from './symbols'
@@ -368,6 +369,14 @@ export function NetworkDiagram({
   ref: handleRef,
 }: NetworkDiagramProps) {
   const theme = useChartTheme()
+  const expand = useDiagramExpand()
+  const expanded = !!expand?.expanded
+  const fullscreen = !!expand?.fullscreen
+  /** Latest expanded state, read when an instance is created (a relayout re-creates it). */
+  const expandedRef = useRef(expanded)
+  useEffect(() => {
+    expandedRef.current = expanded
+  }, [expanded])
   const ref = useRef<HTMLDivElement>(null)
   const outerRef = useRef<HTMLDivElement>(null)
   const cyRef = useRef<Core | null>(null)
@@ -400,8 +409,9 @@ export function NetworkDiagram({
       elements,
       minZoom: 0.05,
       maxZoom: 6,
-      // the wheel scrolls the page; zoom with the + / − buttons (this also turns off pinch-zoom)
-      userZoomingEnabled: false,
+      // collapsed: the wheel scrolls the page, zoom with the + / − buttons (this also turns off pinch-zoom);
+      // the wheel zooms only in the expanded view, where the diagram fills the window
+      userZoomingEnabled: expandedRef.current,
       userPanningEnabled: true,
       boxSelectionEnabled: false,
       selectionType: 'single',
@@ -492,6 +502,22 @@ export function NetworkDiagram({
       if (import.meta.env.DEV && window.__gridsimCy === cy) delete window.__gridsimCy
     }
   }, [elements, layout, topology])
+
+  // expanded: wheel zoom on; the container changed size, so resize and refit (the instance itself is kept)
+  const sizeKey = useRef(`${expanded}/${fullscreen}`)
+  useEffect(() => {
+    cyRef.current?.userZoomingEnabled(expanded)
+    const key = `${expanded}/${fullscreen}`
+    if (sizeKey.current === key) return
+    sizeKey.current = key
+    const raf = requestAnimationFrame(() => {
+      const cy = cyRef.current
+      if (!cy) return
+      cy.resize()
+      cy.fit(undefined, 24)
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [expanded, fullscreen, elements, layout])
 
   // styling: theme + overlay
   useEffect(() => {
@@ -616,8 +642,11 @@ export function NetworkDiagram({
       data-changed-count={changed?.size ?? 0}
       data-out-of-service-count={status.branchOff.size + status.applianceOff.size}
       data-not-energised-count={topology.nodes.length - status.energised.size}
+      data-expanded={expanded ? '1' : '0'}
       data-selected={selected ? `${selected.kind}:${selected.id}` : ''}
-      className={cn('relative overflow-hidden rounded-md border border-border bg-surface-2', className)} style={{ height }}>
+      className={cn('relative overflow-hidden rounded-md border border-border bg-surface-2', expanded && 'min-h-64', className)}
+      style={{ height: expanded ? '100%' : height }}
+    >
       <div ref={ref} className="absolute inset-0 h-full w-full" />
       <div className="absolute top-2 right-2 flex flex-col overflow-hidden rounded-md border border-border bg-surface shadow-sm">
         <button className="p-1.5 text-fg-2 hover:bg-surface-3" onClick={() => zoom(1.25)} aria-label="Zoom in" title="Zoom in">
@@ -632,8 +661,18 @@ export function NetworkDiagram({
           aria-label="Fit"
           title="Fit to view"
         >
-          <Maximize2 size={14} />
+          <Scan size={14} />
         </button>
+        {expand && !expand.expanded && (
+          <button
+            className="border-t border-border p-1.5 text-fg-2 hover:bg-surface-3"
+            onClick={expand.expand}
+            aria-label="Expand diagram"
+            title="Expand diagram"
+          >
+            <Maximize size={14} />
+          </button>
+        )}
       </div>
       {(legend || corner) && (
         <div className="pointer-events-none absolute inset-x-2 bottom-2 flex items-end justify-between gap-2">

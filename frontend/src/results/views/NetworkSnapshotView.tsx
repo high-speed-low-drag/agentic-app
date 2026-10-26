@@ -11,6 +11,7 @@ import {
   GradientLegend,
   ISLANDED_TIP,
   loadingColor,
+  ExpandableNetwork,
   NetworkDiagram,
   OOS_TIP,
   StatusLegend,
@@ -18,6 +19,7 @@ import {
 } from '../../components/network'
 import { changedElements } from '../../components/network/overrides'
 import { EmptyState, ErrorState, IconButton, LoadingState, Segmented, Spinner } from '../../components/ui'
+import { cn } from '../../lib/utils'
 import { fmtDateTime, fmtPct, fmtPu, toDate } from '../../lib/format'
 import { solarSource } from '../../lib/solar'
 import { toNaive } from '../../lib/time'
@@ -108,6 +110,8 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
   if (!ctx.topology || !ctx.fileTopology) return <EmptyState title="Network not available" description="The case or network of this run could not be found." />
 
   const sel = selected
+  const topology = ctx.topology
+  const fileTopology = ctx.fileTopology
   // switched-off branches carry no flow and islanded nodes have no voltage (values may be null/NaN)
   const selStatus =
     sel?.kind === 'branch' && status?.branchOff.has(sel.id)
@@ -126,7 +130,9 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
       : null)
 
   return (
-    <div className="grid gap-3">
+    <ExpandableNetwork title={`${ctx.case?.name ?? 'Run'} · Network`} className="grid gap-3">
+      {({ expanded }) => (
+        <>
       <div className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-surface-2 px-3 py-2">
         <IconButton
           label={playing ? 'Pause' : 'Play'}
@@ -163,12 +169,19 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
         <Segmented size="sm" className="shrink-0" value={speed} onChange={setSpeed} options={SPEED_OPTIONS} />
       </div>
       {snap.error && <ErrorState error={snap.error} title="Could not load snapshot" />}
-      <div className="grid gap-3 lg:grid-cols-[1fr_260px]">
-        <div ref={diagramRef} className="min-w-0">
+      <div
+        className={cn(
+          'grid gap-3',
+          expanded
+            ? 'min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_260px] lg:grid-rows-[minmax(0,1fr)]'
+            : 'lg:grid-cols-[1fr_260px]',
+        )}
+      >
+        <div ref={diagramRef} className={cn('min-w-0', expanded && 'h-full min-h-0')}>
           <NetworkDiagram
-            topology={ctx.fileTopology}
+            topology={fileTopology}
             changed={changed}
-            statusTopology={ctx.topology}
+            statusTopology={topology}
             overlay={overlay}
             overlayKey={t}
             selected={selected}
@@ -183,7 +196,7 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
                   stops={[loadingColor(0, theme), loadingColor(0.6, theme), loadingColor(1, theme), loadingColor(1.2, theme)]}
                   ticks={['0%', '60%', '100%', '120%']}
                 />
-                <StatusLegend topology={ctx.topology} theme={theme} />
+                <StatusLegend topology={topology} theme={theme} />
               </div>
             }
             corner={
@@ -191,10 +204,10 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
             }
           />
         </div>
-        <div className="rounded-md border border-border bg-surface p-3">
+        <div className={cn('rounded-md border border-border bg-surface p-3', expanded && 'max-h-48 min-h-0 overflow-auto overscroll-contain lg:max-h-none')}>
           {sel ? (
             <ElementDetails
-              topology={ctx.topology}
+              topology={topology}
               edits={ctx.effective}
               selected={sel}
               onSelect={setSelected}
@@ -213,6 +226,8 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
           )}
         </div>
       </div>
-    </div>
+        </>
+      )}
+    </ExpandableNetwork>
   )
 }

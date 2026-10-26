@@ -47,8 +47,8 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 | T22 | project.md: self-contained rebuild spec for another agent | done | T21 | project.md | completeness cross-check (views, routes, e2e specs, editable fields) |
 | T23 | Rewrite project.md as product/feature spec (what, not how) | done | T22 | project.md | every user-visible feature covered; tech-agnostic |
 | T26 | Fix CI: pin astral-sh/setup-uv to v10.3.2 | done | T21 | .github/workflows/ci.yml | first real CI run green |
-| T27 | CI fix: click fallback near crowded nodes + robust node-size e2e | done | T26 | frontend/ | make check && make e2e; CI run green |
-| T28 | Expanded network view (overlay + true full screen), wheel zoom while expanded [sonnet] | in_progress | T27 | frontend/ | make check && CI=1 make e2e |
+| T27 | CI fix: click fallback near crowded nodes + robust node-size e2e | done (CI green: run 40416566783) | T26 | frontend/ | make check && make e2e; CI run green |
+| T28 | Expanded network view (overlay + true full screen), wheel zoom while expanded [sonnet] | done | T27 | frontend/ | make check && CI=1 make e2e |
 
 ## Log
 - 2026-10-26: profile scale factor shipped (d1d031c). T6 approved by user; sub-agent started.
@@ -132,3 +132,4 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 - T26 done (setup passes; CI: make check green, e2e 22/23). T27 approved by user; sub-agent started.
 - T27 done: root cause = Cytoscape stale container-offset cache after <main> scroll on slow CI (fixed via cache invalidation on pointerdown) + click fallback for non-selectable targets. make check (69 pytest, 95 vitest), CI=1 make e2e 24/24 verified. Pushed with README + model-choice commits.
 - T28 approved by user (Sonnet); sub-agent started.
+- CI run 40416566783 on df6c40a: SUCCESS (first fully green CI). T28 done: make check (69 pytest, 95 vitest) + CI=1 make e2e (28/28) verified; screenshots reviewed. Pushed.

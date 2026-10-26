@@ -125,7 +125,7 @@ export function NetworkSection({ draft, onChange }: { draft: CaseStudy; onChange
             ) : topo.error ? (
               <ErrorState error={topo.error} title="Could not load topology" onRetry={() => void topo.refetch()} />
             ) : topo.data ? (
-              <NetworkExplorer key={`${topo.data.source}/${topo.data.key}`} topology={topo.data} effective={effective} editing={editing} />
+              <NetworkExplorer title={draft.name} key={`${topo.data.source}/${topo.data.key}`} topology={topo.data} effective={effective} editing={editing} />
             ) : (
               <EmptyState title="No topology" />
             )}
