@@ -32,6 +32,7 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 | T7 | Click-to-row: diagram ↔ table jump, flash, filters cleared, reverse centring | done | T6 | frontend/ | `make check && make e2e` |
 | T8 | Diagram clicks select quietly; only Edit in table jumps | done | T7 | frontend/ | `make check && make e2e` |
 | T9 | Bug: show override-applied equipment values in profiles list and details panel | done | T8 | frontend/ | `make check && make e2e` |
+| T10 | Generic branches editable (sn, R, X, in service) + results snapshot uses frozen overrides | in_progress | T9 | backend/, frontend/ | `make check && make e2e` |
 
 ## Log
 - 2026-10-26: profile scale factor shipped (d1d031c). T6 approved by user; sub-agent started.
@@ -42,3 +43,4 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 - T8 done: make check (55 pytest, 31 vitest) + make e2e (8/8) verified by orchestrator.
 - T9 (bug fix) approved by user; sub-agent started.
 - T9 done: make check (55 pytest, 36 vitest) + make e2e (9/9) verified by orchestrator. Found: results Network snapshot ignores frozen-case overrides (not fixed).
+- Issue #1 raised (deferred): unrated branches show 0% loading. T10 approved by user; sub-agent started.
