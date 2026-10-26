@@ -113,3 +113,11 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 | C8 | Diagram positions from the CIM DiagramLayout profile when present; auto-layout otherwise | proposed | C3 | |
 | C9 | Frontend migration: string mRIDs, CIM class names and labels; project.md constraints updated | proposed | C2–C6 | |
 - Assessment: CIM as the canonical semantic model plus interchange and storage format = yes. CIM as the in-memory compute or time-series format = no: an engine-native model is built per run, and time series are kept columnar.
+
+# Milestone 4: Demonstration cases (started 2026-10-27)
+
+| id | task | status | deps | owns | done check |
+|----|------|--------|------|------|------------|
+| D1 | Explore 2–3 demo-ready cases (Vision MV summer PV, Vision MV winter peak, IEEE 14 rated) with visible voltage/loading violations | in_progress | – | scratchpad only (no app code, no user workspace) | each case runs with 0 failed timesteps and shows violations; results reported |
+| D2 | Ship the chosen demo cases in the app (e.g. seeded demo cases) | todo (needs a brief and the user's go-ahead) | D1 | backend workspace seed, tests | make check && make e2e |
+- 2026-10-27: D1 requested by the user ("start now"); exploration sub-agent started. Shipping (D2) is gated on the user's go-ahead.
