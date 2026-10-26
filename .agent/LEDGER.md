@@ -45,7 +45,7 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 | T20 | Neutral (within-band) vs not-energised nodes distinct | done | T19 | frontend/ | `make check && make e2e` |
 | T21 | GitHub Actions CI: make check + make e2e on PRs | in_progress | T20 | .github/, frontend/playwright.config.ts, Makefile, README | local CI=1 make check && make e2e; then first CI run on PR #6 green |
 | T22 | project.md: self-contained rebuild spec for another agent | done | T21 | project.md | completeness cross-check (views, routes, e2e specs, editable fields) |
-| T23 | Rewrite project.md as product/feature spec (what, not how) | in_progress | T22 | project.md | every user-visible feature covered; tech-agnostic |
+| T23 | Rewrite project.md as product/feature spec (what, not how) | done | T22 | project.md | every user-visible feature covered; tech-agnostic |
 
 ## Log
 - 2026-10-26: profile scale factor shipped (d1d031c). T6 approved by user; sub-agent started.
@@ -87,3 +87,4 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 - T22 interrupted by usage limit mid-read (backend done, frontend pending); resumed same agent from journal, told to write project.md section by section.
 - T22 done: project.md (2,796 lines, 16 sections + appendix) reviewed; cross-check of routes/views/e2e/editable fields passed; orchestrator filled in exact PGM sample paths. Committed locally, not pushed.
 - User: project.md misses the mark (describes how, not what). T23 rewrite started.
+- T23 done: project.md rewritten as product spec (1,413 lines, 7 sections, 20 feature subsections with numbered requirements + acceptance criteria); reviewed, no stack/code leakage. Committed locally.
