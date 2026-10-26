@@ -44,7 +44,7 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 | T19 | Time series limit lines always visible (axis includes limits) | done | T18 | frontend/ | `make check && make e2e` |
 | T20 | Neutral (within-band) vs not-energised nodes distinct | done | T19 | frontend/ | `make check && make e2e` |
 | T21 | GitHub Actions CI: make check + make e2e on PRs | in_progress | T20 | .github/, frontend/playwright.config.ts, Makefile, README | local CI=1 make check && make e2e; then first CI run on PR #6 green |
-| T22 | project.md: self-contained rebuild spec for another agent | in_progress | T21 | project.md | completeness cross-check (views, routes, e2e specs, editable fields) |
+| T22 | project.md: self-contained rebuild spec for another agent | done | T21 | project.md | completeness cross-check (views, routes, e2e specs, editable fields) |
 
 ## Log
 - 2026-10-26: profile scale factor shipped (d1d031c). T6 approved by user; sub-agent started.
@@ -83,3 +83,5 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 - PR #6 opened. T21 (CI) approved by user; sub-agent started.
 - T21 committed + pushed to PR #6 after local verification (59 pytest, 95 vitest, 22/22 e2e). Awaiting first CI run. Known flaky: node-size.spec 'clear selection' click can hit an appliance.
 - T22 (project.md) requested by user; sub-agent started.
+- T22 interrupted by usage limit mid-read (backend done, frontend pending); resumed same agent from journal, told to write project.md section by section.
+- T22 done: project.md (2,796 lines, 16 sections + appendix) reviewed; cross-check of routes/views/e2e/editable fields passed; orchestrator filled in exact PGM sample paths. Committed locally, not pushed.
