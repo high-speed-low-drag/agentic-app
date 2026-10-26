@@ -46,6 +46,28 @@ export type ApplianceType = 'sym_load' | 'sym_gen' | 'asym_load' | 'asym_gen' | 
 export type ProfileTargetComponent = 'sym_load' | 'sym_gen'
 export const PROFILE_TARGET_COMPONENTS: ProfileTargetComponent[] = ['sym_load', 'sym_gen']
 
+/** File values (SI units) of a component's editable fields, keyed by field name. */
+export type ParamValues = Record<string, number>
+
+export type EditableFieldKind = 'float' | 'int' | 'bool'
+
+/** An input field a case may override (GET /networks/editable-fields). */
+export interface EditableField {
+  field: string
+  label: string
+  /** display unit */
+  unit: string
+  /** display value = SI value * scale */
+  scale: number
+  kind: EditableFieldKind
+  /** inclusive SI bounds */
+  min: number | null
+  max: number | null
+}
+
+/** Component -> editable fields. */
+export type EditableFields = Record<string, EditableField[]>
+
 export interface TopologyNode {
   id: number
   name: string
@@ -60,6 +82,7 @@ export interface TopologyBranch {
   to_node: number
   node_3?: number | null
   in_service: boolean
+  params: ParamValues
 }
 
 export interface TopologyAppliance {
@@ -70,6 +93,7 @@ export interface TopologyAppliance {
   p_specified?: number | null
   q_specified?: number | null
   in_service: boolean
+  params: ParamValues
 }
 
 export interface TopologySource {
@@ -77,6 +101,7 @@ export interface TopologySource {
   name: string
   node: number
   u_ref: number
+  params: ParamValues
 }
 
 export interface NetworkTopology extends NetworkRef {
@@ -184,6 +209,14 @@ export interface ProfileAssignment {
   factor: number
 }
 
+/** Per-case override of one editable field of one element (value in SI units, bools 0/1). */
+export interface NetworkOverride {
+  component: string
+  id: number
+  field: string
+  value: number
+}
+
 export interface CaseStudy {
   id?: string
   name: string
@@ -194,6 +227,8 @@ export interface CaseStudy {
   calculation: CalculationSettings
   limits: Limits
   profile_assignments: ProfileAssignment[]
+  /** edits on top of the unchanged network file (default []) */
+  network_overrides: NetworkOverride[]
   created_at?: Timestamp
   updated_at?: Timestamp
 }

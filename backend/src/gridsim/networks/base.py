@@ -88,6 +88,19 @@ def _float_or_none(v: Any) -> float | None:
     return None if np.isnan(f) else f
 
 
+def _params(comp: str, row: np.void) -> dict[str, float]:
+    """File values of the component's editable fields (NaN/missing values are left out)."""
+    from gridsim.networks.editable import editable_fields
+
+    out: dict[str, float] = {}
+    for f in editable_fields(comp):
+        if f.field in row.dtype.names:
+            v = float(row[f.field])
+            if not np.isnan(v):
+                out[f.field] = v
+    return out
+
+
 def build_topology(
     source: str, key: str, name: str, data: dict[str, np.ndarray], names: dict[int, str]
 ) -> NetworkTopology:
@@ -113,6 +126,7 @@ def build_topology(
                     from_node=int(r["from_node"]),
                     to_node=int(r["to_node"]),
                     in_service=bool(s),
+                    params=_params(comp, r),
                 )
             )
     for comp in BRANCH3_TYPES:
@@ -148,6 +162,7 @@ def build_topology(
                     p_specified=_float_or_none(r["p_specified"]) if has_pq else None,
                     q_specified=_float_or_none(r["q_specified"]) if has_pq else None,
                     in_service=bool(r["status"] != 0),
+                    params=_params(comp, r),
                 )
             )
     sources = [
@@ -156,6 +171,7 @@ def build_topology(
             name=nm("source", r["id"]),
             node=int(r["node"]),
             u_ref=float(r["u_ref"]),
+            params=_params("source", r),
         )
         for r in data.get("source", [])
     ]

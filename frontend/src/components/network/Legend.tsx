@@ -11,7 +11,7 @@ export function Swatch({ color, shape = 'dot' }: { color: string; shape?: 'dot' 
 }
 
 /** Default legend: voltage levels + branch types present in the topology. */
-export function TopologyLegend({ topology, theme }: { topology: NetworkTopology; theme: ChartTheme }) {
+export function TopologyLegend({ topology, theme, changed }: { topology: NetworkTopology; theme: ChartTheme; changed?: boolean }) {
   const levels = voltageLevels(topology)
   const types = Array.from(new Set(topology.branches.map((b) => b.type)))
   return (
@@ -29,6 +29,15 @@ export function TopologyLegend({ topology, theme }: { topology: NetworkTopology;
           {BRANCH_TYPE_LABELS[t] ?? t}
         </span>
       ))}
+      {changed && (
+        <>
+          <span className="h-3 w-px bg-border" />
+          <span className="inline-flex items-center gap-1">
+            <span className="inline-block size-2.5 rounded-full border-2" style={{ borderColor: theme.warn }} />
+            Changed
+          </span>
+        </>
+      )}
     </div>
   )
 }

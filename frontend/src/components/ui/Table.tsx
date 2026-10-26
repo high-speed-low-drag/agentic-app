@@ -11,6 +11,8 @@ export interface Column<T> {
   sortValue?: (row: T) => number | string | null | undefined
   align?: 'left' | 'right' | 'center'
   className?: string
+  /** Extra class names for one body cell (e.g. highlight a changed value). */
+  cellClassName?: (row: T) => string | false | null | undefined
   width?: string | number
 }
 
@@ -137,7 +139,7 @@ export function Table<T>({
                   )}
                 >
                   {columns.map((c) => (
-                    <td key={c.key} className={cn(pad, alignCls(c.align), 'whitespace-nowrap text-fg', c.className)}>
+                    <td key={c.key} className={cn(pad, alignCls(c.align), 'whitespace-nowrap text-fg', c.className, c.cellClassName?.(r))}>
                       {c.cell(r)}
                     </td>
                   ))}

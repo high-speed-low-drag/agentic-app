@@ -47,6 +47,8 @@ export type ContractChecks = [
   Expect<Compatible<S.Health, G['Health']>>,
   Expect<Compatible<S.NetworkItem, G['NetworkItem']>>,
   Expect<Compatible<S.NetworkTopology, G['NetworkTopology']>>,
+  Expect<Compatible<S.EditableField, G['EditableField']>>,
+  Expect<Compatible<S.NetworkOverride, G['NetworkOverride']>>,
   Expect<Compatible<GeneratorInfo, G['ProfileGeneratorInfo']>>,
   Expect<Compatible<S.ProfilePreviewRequest, G['ProfilePreviewRequest']>>,
   Expect<Compatible<S.ProfilePreviewResponse, G['ProfilePreviewResponse']>>,

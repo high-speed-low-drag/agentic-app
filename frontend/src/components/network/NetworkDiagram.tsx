@@ -43,6 +43,8 @@ export interface NetworkDiagramProps {
   height?: number | string
   className?: string
   legend?: ReactNode
+  /** Elements to mark as changed (amber ring/halo), as `kind:id` keys, e.g. "branch:47". */
+  changed?: Set<string>
 }
 
 function stylesheet(t: ChartTheme): StylesheetJson {
@@ -94,6 +96,15 @@ function stylesheet(t: ChartTheme): StylesheetJson {
       selector: ':selected',
       style: { 'overlay-color': t.accent, 'overlay-opacity': 0.25, 'overlay-padding': 5 },
     },
+    {
+      selector: 'node.changed',
+      style: { 'border-color': t.warn, 'border-width': 3, 'border-opacity': 1, width: 16, height: 16 },
+    },
+    { selector: 'node.appliance.changed', style: { width: 10, height: 10, 'border-width': 2.5 } },
+    {
+      selector: 'edge.changed',
+      style: { 'underlay-color': t.warn, 'underlay-opacity': 0.55, 'underlay-padding': 4 } as never,
+    },
     { selector: 'node:selected', style: { 'border-color': t.accent, 'border-width': 3 } },
   ]
 }
@@ -143,6 +154,7 @@ export function NetworkDiagram({
   height = 480,
   className,
   legend,
+  changed,
 }: NetworkDiagramProps) {
   const theme = useChartTheme()
   const ref = useRef<HTMLDivElement>(null)
@@ -219,6 +231,21 @@ export function NetworkDiagram({
     // overlayKey intentionally retriggers this effect
   }, [theme, overlay, overlayKey, levels, branchTypes, elements, layout])
 
+  // changed-element markers
+  useEffect(() => {
+    const cy = cyRef.current
+    if (!cy) return
+    cy.batch(() => {
+      cy.elements().removeClass('changed')
+      for (const key of changed ?? []) {
+        const [kind, raw] = key.split(':')
+        const id = Number(raw)
+        if (kind === 'branch') cy.$(`[kind = "branch"][eid = ${id}], [kind = "hub"][eid = ${id}]`).addClass('changed')
+        else cy.getElementById(cyId(kind as ElementRef['kind'], id)).addClass('changed')
+      }
+    })
+  }, [changed, elements, layout])
+
   // selection sync
   useEffect(() => {
     const cy = cyRef.current
@@ -238,7 +265,7 @@ export function NetworkDiagram({
   }
 
   return (
-    <div data-testid="network-diagram" className={cn('relative overflow-hidden rounded-md border border-border bg-surface-2', className)} style={{ height }}>
+    <div data-testid="network-diagram" data-changed-count={changed?.size ?? 0} className={cn('relative overflow-hidden rounded-md border border-border bg-surface-2', className)} style={{ height }}>
       <div ref={ref} className="absolute inset-0 h-full w-full" />
       <div className="absolute top-2 right-2 flex flex-col overflow-hidden rounded-md border border-border bg-surface shadow-sm">
         <button className="p-1.5 text-fg-2 hover:bg-surface-3" onClick={() => zoom(1.25)} aria-label="Zoom in" title="Zoom in">

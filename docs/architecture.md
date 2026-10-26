@@ -61,6 +61,10 @@ JSON files). A future `lakehouse` source will implement the same interface.
     behind-the-meter generation, e.g. rooftop PV on a load).
   - Assignments apply in list order. Appliances without an assignment keep
     their base values.
+- **Network overrides** (`case.network_overrides`) edit equipment parameters per case on top of the unchanged
+  network file. The editable fields per component are a registry in `networks/editable.py`
+  (`GET /api/networks/editable-fields`); `networks/overrides.py` validates them and writes them into a
+  copy of the input arrays before `build_update`, so profiles scale the overridden base values.
 - The engine runs `calculate_power_flow(update_data=batch,
   continue_on_batch_error=True)` in chunks, so it can report progress. Failed
   (non-converged) timesteps are recorded rather than aborting the run.

@@ -1,24 +1,32 @@
 import { MousePointerClick } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { NetworkTopology } from '../../api/schema'
 import { useChartTheme } from '../charts/theme'
 import { Checkbox, Select } from '../ui'
 import { ElementDetails } from './ElementDetails'
+import type { ElementTableEditing } from './ElementTable'
 import { ElementTable } from './ElementTable'
 import type { ElementRef } from './graph'
 import { TopologyLegend } from './Legend'
 import type { DiagramLayout } from './NetworkDiagram'
 import { NetworkDiagram } from './NetworkDiagram'
+import { changedElements } from './overrides'
 
-/** Diagram + details panel + searchable element table, sharing one selection. */
-export function NetworkExplorer({ topology }: { topology: NetworkTopology }) {
+/**
+ * Diagram + details panel + searchable element table, sharing one selection.
+ * With `editing`, the table's editable fields become inline inputs (per-case overrides)
+ * and changed elements are marked in the diagram.
+ */
+export function NetworkExplorer({ topology, editing }: { topology: NetworkTopology; editing?: ElementTableEditing }) {
   const theme = useChartTheme()
+  const overrides = editing?.overrides
+  const changed = useMemo(() => changedElements(overrides ?? []), [overrides])
   const [selected, setSelected] = useState<ElementRef | null>(null)
   const [layout, setLayout] = useState<DiagramLayout>('auto')
   const [showAppliances, setShowAppliances] = useState(topology.appliances.length <= 400)
 
   return (
-    <div className="grid gap-4">
+    <div className="grid grid-cols-1 gap-4">
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2 text-xs text-fg-2">
           Layout
@@ -43,7 +51,8 @@ export function NetworkExplorer({ topology }: { topology: NetworkTopology }) {
           layout={layout}
           showAppliances={showAppliances}
           height={520}
-          legend={<TopologyLegend topology={topology} theme={theme} />}
+          legend={<TopologyLegend topology={topology} theme={theme} changed={changed.size > 0} />}
+          changed={changed}
         />
         <div className="rounded-md border border-border bg-surface p-3">
           {selected ? (
@@ -56,7 +65,7 @@ export function NetworkExplorer({ topology }: { topology: NetworkTopology }) {
           )}
         </div>
       </div>
-      <ElementTable topology={topology} selected={selected} onSelect={setSelected} />
+      <ElementTable topology={topology} selected={selected} onSelect={setSelected} editing={editing} />
     </div>
   )
 }

@@ -1,9 +1,10 @@
 import { Network, Upload } from 'lucide-react'
-import { useRef } from 'react'
-import { useNetworks, useNetworkTopology, useUploadNetwork } from '../../api/hooks'
-import type { CaseStudy, ComponentCounts } from '../../api/schema'
+import { useMemo, useRef, useState } from 'react'
+import { useEditableFields, useNetworks, useNetworkTopology, useUploadNetwork } from '../../api/hooks'
+import type { CaseStudy, ComponentCounts, NetworkOverride, NetworkRef } from '../../api/schema'
+import type { ElementTableEditing } from '../../components/network'
 import { NetworkExplorer } from '../../components/network'
-import { Badge, Button, Card, CardBody, CardHeader, EmptyState, ErrorState, Field, LoadingState, Select, useToast } from '../../components/ui'
+import { Badge, Button, Card, CardBody, CardHeader, ConfirmDialog, EmptyState, ErrorState, Field, LoadingState, Select, useToast } from '../../components/ui'
 import { humanize } from '../../lib/format'
 import { errorMessage } from '../../lib/utils'
 
@@ -27,6 +28,28 @@ export function NetworkSection({ draft, onChange }: { draft: CaseStudy; onChange
   const upload = useUploadNetwork()
   const toast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
+  const editable = useEditableFields()
+  const overrides = useMemo(() => draft.network_overrides ?? [], [draft.network_overrides])
+  const [pendingNetwork, setPendingNetwork] = useState<NetworkRef | null>(null)
+
+  /** Switching networks clears the overrides (they refer to the old network's elements). */
+  const switchNetwork = (ref: NetworkRef) => {
+    if (ref.source === draft.network.source && ref.key === draft.network.key) return
+    if (overrides.length > 0) setPendingNetwork(ref)
+    else onChange({ ...draft, network: ref, network_overrides: [] })
+  }
+
+  const editing = useMemo<ElementTableEditing | undefined>(
+    () =>
+      editable.data
+        ? {
+            fields: editable.data,
+            overrides,
+            onChange: (next: NetworkOverride[]) => onChange({ ...draft, network_overrides: next }),
+          }
+        : undefined,
+    [editable.data, overrides, draft, onChange],
+  )
 
   const value = draft.network.source ? `${draft.network.source}/${draft.network.key}` : ''
   const items = networks.data ?? []
@@ -39,7 +62,7 @@ export function NetworkSection({ draft, onChange }: { draft: CaseStudy; onChange
     upload.mutate(f, {
       onSuccess: (item) => {
         toast.success('Network uploaded', item.name)
-        onChange({ ...draft, network: { source: item.source, key: item.key } })
+        switchNetwork({ source: item.source, key: item.key })
       },
       onError: (e) => toast.error('Upload failed', errorMessage(e)),
     })
@@ -47,7 +70,7 @@ export function NetworkSection({ draft, onChange }: { draft: CaseStudy; onChange
   }
 
   return (
-    <div className="grid gap-4">
+    <div className="grid grid-cols-1 gap-4">
       <Card>
         <CardHeader
           title="Network"
@@ -78,7 +101,7 @@ export function NetworkSection({ draft, onChange }: { draft: CaseStudy; onChange
                     options={options}
                     onChange={(v) => {
                       const i = v.indexOf('/')
-                      onChange({ ...draft, network: { source: v.slice(0, i), key: v.slice(i + 1) } })
+                      switchNetwork({ source: v.slice(0, i), key: v.slice(i + 1) })
                     }}
                   />
                 )}
@@ -92,20 +115,36 @@ export function NetworkSection({ draft, onChange }: { draft: CaseStudy; onChange
 
       {draft.network.source && (
         <Card>
-          <CardHeader title="Topology" description="Pan with drag, zoom with the wheel; click an element for details." />
+          <CardHeader
+            title="Topology"
+            description="Pan with drag, zoom with the wheel; click an element for details. Edit parameters in the table: changes apply to this case only, the network file stays unchanged."
+          />
           <CardBody>
             {topo.isLoading ? (
               <LoadingState label="Loading topology…" />
             ) : topo.error ? (
               <ErrorState error={topo.error} title="Could not load topology" onRetry={() => void topo.refetch()} />
             ) : topo.data ? (
-              <NetworkExplorer key={`${topo.data.source}/${topo.data.key}`} topology={topo.data} />
+              <NetworkExplorer key={`${topo.data.source}/${topo.data.key}`} topology={topo.data} editing={editing} />
             ) : (
               <EmptyState title="No topology" />
             )}
           </CardBody>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={pendingNetwork !== null}
+        title="Switch network?"
+        message={`This case has ${overrides.length} parameter override${overrides.length === 1 ? '' : 's'} on the current network. Switching networks removes them.`}
+        confirmLabel="Switch and clear"
+        danger
+        onCancel={() => setPendingNetwork(null)}
+        onConfirm={() => {
+          if (pendingNetwork) onChange({ ...draft, network: pendingNetwork, network_overrides: [] })
+          setPendingNetwork(null)
+        }}
+      />
     </div>
   )
 }

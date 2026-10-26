@@ -51,6 +51,24 @@ class NetworkItem(BaseModel):
     counts: dict[str, int] = Field(default_factory=dict)
 
 
+EditableFieldKind = Literal["float", "int", "bool"]
+
+
+class EditableField(BaseModel):
+    """An input attribute a case may override (see networks/editable.py)."""
+
+    field: str
+    label: str
+    unit: str = Field("", description="Display unit")
+    scale: float = Field(1.0, description="display value = SI value * scale")
+    kind: EditableFieldKind = "float"
+    min: float | None = Field(None, description="Minimum SI value (inclusive)")
+    max: float | None = Field(None, description="Maximum SI value (inclusive)")
+
+
+ParamValues = dict[str, float]
+
+
 class TopologyNode(BaseModel):
     id: int
     name: str
@@ -65,6 +83,9 @@ class TopologyBranch(BaseModel):
     to_node: int
     node_3: int | None = None
     in_service: bool = True
+    params: ParamValues = Field(
+        default_factory=dict, description="File values of the editable fields (SI units)"
+    )
 
 
 class TopologyAppliance(BaseModel):
@@ -75,6 +96,9 @@ class TopologyAppliance(BaseModel):
     p_specified: float | None = None
     q_specified: float | None = None
     in_service: bool = True
+    params: ParamValues = Field(
+        default_factory=dict, description="File values of the editable fields (SI units)"
+    )
 
 
 class TopologySource(BaseModel):
@@ -82,6 +106,9 @@ class TopologySource(BaseModel):
     name: str
     node: int
     u_ref: float
+    params: ParamValues = Field(
+        default_factory=dict, description="File values of the editable fields (SI units)"
+    )
 
 
 class NetworkTopology(BaseModel):
@@ -159,6 +186,15 @@ class ProfileAssignment(BaseModel):
     )
 
 
+class NetworkOverride(BaseModel):
+    """Per-case override of one editable input attribute of one network element."""
+
+    component: str = Field(description="PGM component, e.g. 'sym_load'")
+    id: int
+    field: str
+    value: float = Field(description="New value in SI/PGM units (booleans as 0/1)")
+
+
 class CaseStudy(BaseModel):
     id: str | None = None
     name: str = Field(min_length=1)
@@ -169,6 +205,9 @@ class CaseStudy(BaseModel):
     calculation: CalculationSettings = Field(default_factory=CalculationSettings)
     limits: Limits = Field(default_factory=Limits)
     profile_assignments: list[ProfileAssignment] = Field(default_factory=list)
+    network_overrides: list[NetworkOverride] = Field(
+        default_factory=list, description="Edits on top of the unchanged network file"
+    )
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

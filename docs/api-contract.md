@@ -22,6 +22,18 @@ Conventions:
 {"source": "sample", "key": "vision_mv", "name": "Vision MV validation network",
  "description": "…", "counts": {"node": 47, "line": 28, "transformer": 22, "sym_load": 21, "sym_gen": 5}}
 ```
+`GET /api/networks/editable-fields` → `{component: EditableField[]}`: per PGM component, the input fields a case may
+override with `network_overrides` (components not listed have none).
+```json
+{"sym_load": [{"field": "p_specified", "label": "P", "unit": "MW", "scale": 1e-6, "kind": "float", "min": null, "max": null},
+              {"field": "status", "label": "In service", "unit": "", "scale": 1.0, "kind": "bool", "min": 0, "max": 1}]}
+```
+`kind` is `float | int | bool`; `display value = SI value * scale`; `min`/`max` (inclusive, SI) are optional.
+v0 fields: `sym_load`/`sym_gen` `p_specified, q_specified, status`; `line` `r1, x1, c1, i_n, from_status, to_status`;
+`transformer` `sn, tap_pos, from_status, to_status`; `link` `from_status, to_status`; `source` `u_ref`.
+`transformer.tap_pos` is an integer within the element's `tap_min..tap_max`. The UI shows `from_status`/`to_status` as
+one "in service" toggle that sets both.
+
 `POST /api/networks/upload` (multipart, field `file`: PGM JSON input file) → `NetworkItem` (source `"upload"`)
 
 `GET /api/networks/{source}/{key}` → `NetworkTopology`
@@ -29,15 +41,19 @@ Conventions:
 {
   "source": "sample", "key": "vision_mv", "name": "…",
   "nodes":      [{"id": 0, "name": "Rail B", "u_rated": 10500.0}],
-  "branches":   [{"id": 47, "type": "line", "name": "R1", "from_node": 0, "to_node": 1, "in_service": true}],
-  "appliances": [{"id": 104, "type": "sym_load", "name": "Load1", "node": 26, "p_specified": 1500000.0, "q_specified": 1000000.0, "in_service": true}],
-  "sources":    [{"id": 99, "name": "source1", "node": 23, "u_ref": 1.0}],
+  "branches":   [{"id": 47, "type": "line", "name": "R1", "from_node": 0, "to_node": 1, "in_service": true,
+                  "params": {"r1": 0.2, "x1": 0.1, "c1": 1e-6, "i_n": 360.0, "from_status": 1.0, "to_status": 1.0}}],
+  "appliances": [{"id": 104, "type": "sym_load", "name": "Load1", "node": 26, "p_specified": 1500000.0, "q_specified": 1000000.0, "in_service": true,
+                  "params": {"p_specified": 1500000.0, "q_specified": 1000000.0, "status": 1.0}}],
+  "sources":    [{"id": 99, "name": "source1", "node": 23, "u_ref": 1.0, "params": {"u_ref": 1.0}}],
   "counts": {"node": 47}
 }
 ```
 Branch `type` is one of `line | link | transformer | generic_branch | three_winding_transformer` (3-winding: see `nodes` field below).
 For `three_winding_transformer` the branch has `from_node`=node_1, `to_node`=node_2 and an extra `node_3`. Appliance `type` covers
 `sym_load | sym_gen | asym_load | asym_gen | shunt`. Only `sym_load` and `sym_gen` are profile targets in v0.
+Branches, appliances and sources carry `params`: the network file values (SI units) of that component's editable fields
+(empty when it has none; NaN values are left out).
 
 ## Profile generators
 `GET /api/profile-generators` → `ProfileGeneratorInfo[]`
@@ -71,9 +87,16 @@ v0 generators: `constant` (value), `residential_load`, `commercial_load`, `pv` (
      "target": {"component": "sym_load", "ids": null},     // null = all elements of that component
      "mode": "scale", "magnitude_w": null, "factor": 1.0}   // factor: 0..100, multiplies m(t) (stress tests, e.g. 2 = twice the peak)
   ],
+  "network_overrides": [                                   // default []; edits on top of the unchanged network file
+    {"component": "sym_load", "id": 104, "field": "p_specified", "value": 3000000.0}   // value in SI/PGM units, bools 0/1
+  ],
   "created_at": "…", "updated_at": "…"
 }
 ```
+Overrides are written into a copy of the network's input data before profiles are applied, so `scale` profiles scale the
+overridden base value. Validation reports, naming the element and field: unknown/non-editable component, unknown id,
+non-editable field, duplicates, out-of-range or non-integer/non-boolean values, and PGM `validate_input_data` failures
+after the overrides (prefixed `After overrides:`). The run's frozen `case.json` contains the overrides.
 `calculation.method` is one of `newton_raphson | iterative_current | linear | linear_current`.
 `resolution_minutes` is an integer from 1 to 1440, and the number of timesteps must be ≤ 100 000.
 

@@ -38,6 +38,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/networks/editable-fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Editable Fields
+         * @description Per PGM component, the input fields a case may override (`network_overrides`).
+         */
+        get: operations["get_editable_fields"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/networks/upload": {
         parameters: {
             query?: never;
@@ -441,6 +461,11 @@ export interface components {
             limits?: components["schemas"]["Limits"];
             /** Profile Assignments */
             profile_assignments?: components["schemas"]["ProfileAssignment"][];
+            /**
+             * Network Overrides
+             * @description Edits on top of the unchanged network file
+             */
+            network_overrides?: components["schemas"]["NetworkOverride"][];
             /** Created At */
             created_at?: string | null;
             /** Updated At */
@@ -459,6 +484,44 @@ export interface components {
             /** Updated At */
             updated_at: string | null;
             last_run?: components["schemas"]["RunInfo"] | null;
+        };
+        /**
+         * EditableField
+         * @description An input attribute a case may override (see networks/editable.py).
+         */
+        EditableField: {
+            /** Field */
+            field: string;
+            /** Label */
+            label: string;
+            /**
+             * Unit
+             * @description Display unit
+             * @default
+             */
+            unit: string;
+            /**
+             * Scale
+             * @description display value = SI value * scale
+             * @default 1
+             */
+            scale: number;
+            /**
+             * Kind
+             * @default float
+             * @enum {string}
+             */
+            kind: "float" | "int" | "bool";
+            /**
+             * Min
+             * @description Minimum SI value (inclusive)
+             */
+            min?: number | null;
+            /**
+             * Max
+             * @description Maximum SI value (inclusive)
+             */
+            max?: number | null;
         };
         /** EnvelopeResponse */
         EnvelopeResponse: {
@@ -565,6 +628,26 @@ export interface components {
             counts?: {
                 [key: string]: number;
             };
+        };
+        /**
+         * NetworkOverride
+         * @description Per-case override of one editable input attribute of one network element.
+         */
+        NetworkOverride: {
+            /**
+             * Component
+             * @description PGM component, e.g. 'sym_load'
+             */
+            component: string;
+            /** Id */
+            id: number;
+            /** Field */
+            field: string;
+            /**
+             * Value
+             * @description New value in SI/PGM units (booleans as 0/1)
+             */
+            value: number;
         };
         /** NetworkRef */
         NetworkRef: {
@@ -878,6 +961,13 @@ export interface components {
              * @default true
              */
             in_service: boolean;
+            /**
+             * Params
+             * @description File values of the editable fields (SI units)
+             */
+            params?: {
+                [key: string]: number;
+            };
         };
         /** TopologyBranch */
         TopologyBranch: {
@@ -901,6 +991,13 @@ export interface components {
              * @default true
              */
             in_service: boolean;
+            /**
+             * Params
+             * @description File values of the editable fields (SI units)
+             */
+            params?: {
+                [key: string]: number;
+            };
         };
         /** TopologyNode */
         TopologyNode: {
@@ -921,6 +1018,13 @@ export interface components {
             node: number;
             /** U Ref */
             u_ref: number;
+            /**
+             * Params
+             * @description File values of the editable fields (SI units)
+             */
+            params?: {
+                [key: string]: number;
+            };
         };
         /** ValidationError */
         ValidationError: {
@@ -1032,6 +1136,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NetworkItem"][];
+                };
+            };
+        };
+    };
+    get_editable_fields: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: components["schemas"]["EditableField"][];
+                    };
                 };
             };
         };

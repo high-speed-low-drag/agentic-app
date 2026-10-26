@@ -51,6 +51,35 @@
         }
       }
     },
+    "/api/networks/editable-fields": {
+      "get": {
+        "tags": [
+          "networks"
+        ],
+        "summary": "Get Editable Fields",
+        "description": "Per PGM component, the input fields a case may override (`network_overrides`).",
+        "operationId": "get_editable_fields",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "items": {
+                      "$ref": "#/components/schemas/EditableField"
+                    },
+                    "type": "array"
+                  },
+                  "type": "object",
+                  "title": "Response Get Editable Fields"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/networks/upload": {
       "post": {
         "tags": [
@@ -1277,6 +1306,14 @@
             "type": "array",
             "title": "Profile Assignments"
           },
+          "network_overrides": {
+            "items": {
+              "$ref": "#/components/schemas/NetworkOverride"
+            },
+            "type": "array",
+            "title": "Network Overrides",
+            "description": "Edits on top of the unchanged network file"
+          },
           "created_at": {
             "anyOf": [
               {
@@ -1363,6 +1400,71 @@
           "updated_at"
         ],
         "title": "CaseSummary"
+      },
+      "EditableField": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit",
+            "description": "Display unit",
+            "default": ""
+          },
+          "scale": {
+            "type": "number",
+            "title": "Scale",
+            "description": "display value = SI value * scale",
+            "default": 1.0
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "float",
+              "int",
+              "bool"
+            ],
+            "title": "Kind",
+            "default": "float"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min",
+            "description": "Minimum SI value (inclusive)"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max",
+            "description": "Maximum SI value (inclusive)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "label"
+        ],
+        "title": "EditableField",
+        "description": "An input attribute a case may override (see networks/editable.py)."
       },
       "EnvelopeResponse": {
         "properties": {
@@ -1678,6 +1780,37 @@
           "name"
         ],
         "title": "NetworkItem"
+      },
+      "NetworkOverride": {
+        "properties": {
+          "component": {
+            "type": "string",
+            "title": "Component",
+            "description": "PGM component, e.g. 'sym_load'"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value",
+            "description": "New value in SI/PGM units (booleans as 0/1)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "component",
+          "id",
+          "field",
+          "value"
+        ],
+        "title": "NetworkOverride",
+        "description": "Per-case override of one editable input attribute of one network element."
       },
       "NetworkRef": {
         "properties": {
@@ -2441,6 +2574,14 @@
             "type": "boolean",
             "title": "In Service",
             "default": true
+          },
+          "params": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Params",
+            "description": "File values of the editable fields (SI units)"
           }
         },
         "type": "object",
@@ -2497,6 +2638,14 @@
             "type": "boolean",
             "title": "In Service",
             "default": true
+          },
+          "params": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Params",
+            "description": "File values of the editable fields (SI units)"
           }
         },
         "type": "object",
@@ -2549,6 +2698,14 @@
           "u_ref": {
             "type": "number",
             "title": "U Ref"
+          },
+          "params": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Params",
+            "description": "File values of the editable fields (SI units)"
           }
         },
         "type": "object",
