@@ -16,7 +16,7 @@ export interface ChartTheme {
   warn: string
   bad: string
   series: string[]
-  /** Voltage diverging scale: under 1.0 pu (blue), neutral at 1.0 pu, over 1.0 pu (red). */
+  /** Voltage colour scale (lib/voltageScale): under the band (blue), within it (neutral), over it (red). */
   voltUnder: string
   voltMid: string
   voltOver: string
@@ -38,7 +38,7 @@ const FALLBACK: ChartTheme = {
   bad: '#c43030',
   series: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'],
   voltUnder: '#2a78d6',
-  voltMid: '#e6e5e0',
+  voltMid: '#f4f3ef',
   voltOver: '#d03b3b',
 }
 

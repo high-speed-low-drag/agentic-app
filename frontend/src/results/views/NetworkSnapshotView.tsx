@@ -14,7 +14,7 @@ import {
   NetworkDiagram,
   OOS_TIP,
   StatusLegend,
-  voltageDivergingColor,
+  VoltageScaleLegend,
 } from '../../components/network'
 import { changedElements } from '../../components/network/overrides'
 import { EmptyState, ErrorState, IconButton, LoadingState, Segmented, Spinner } from '../../components/ui'
@@ -22,6 +22,7 @@ import { fmtDateTime, fmtPct, fmtPu, toDate } from '../../lib/format'
 import { solarSource } from '../../lib/solar'
 import { toNaive } from '../../lib/time'
 import { useElementWidth } from '../../lib/useElementWidth'
+import { useVoltageScale, voltageColor } from '../../lib/voltageScale'
 import { timestepTime } from '../timestamps'
 import type { ResultViewProps } from '../types'
 import { useRunContext } from '../useRunContext'
@@ -37,6 +38,7 @@ const CLOCK_COMPACT_PX = 560
 /** Network diagram coloured by the results at one timestep, with a time slider and playback. */
 export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
   const theme = useChartTheme()
+  const [vScale] = useVoltageScale()
   const ctx = useRunContext(runId)
   const n = summary.n_timesteps
   const [t, setT] = useState(() => {
@@ -81,14 +83,14 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
     const d = snap.data
     if (!d) return undefined
     return {
-      nodeColor: (id) => voltageDivergingColor(d.nodes[String(id)], theme),
+      nodeColor: (id) => voltageColor(d.nodes[String(id)], vScale, theme),
       branchColor: (id) => loadingColor(d.branches[String(id)], theme),
       branchWidth: (id) => {
         const l = d.branches[String(id)]
         return l === null || l === undefined ? 1 : 1.5 + Math.min(1.5, l) * 3
       },
     }
-  }, [snap.data, theme])
+  }, [snap.data, theme, vScale])
 
   // the run's own network: branches switched off by the frozen case's overrides are drawn dashed
   const overrides = ctx.case?.network_overrides
@@ -175,11 +177,7 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
             height={540}
             legend={
               <div className="flex flex-wrap items-center gap-4">
-                <GradientLegend
-                  label="u"
-                  stops={[theme.voltUnder, theme.voltMid, theme.voltOver]}
-                  ticks={['0.92', '1.00', '1.08']}
-                />
+                <VoltageScaleLegend theme={theme} limits={ctx.limits} />
                 <GradientLegend
                   label="loading"
                   stops={[loadingColor(0, theme), loadingColor(0.6, theme), loadingColor(1, theme), loadingColor(1.2, theme)]}
