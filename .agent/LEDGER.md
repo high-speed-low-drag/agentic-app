@@ -49,6 +49,7 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 | T26 | Fix CI: pin astral-sh/setup-uv to v10.3.2 | done | T21 | .github/workflows/ci.yml | first real CI run green |
 | T27 | CI fix: click fallback near crowded nodes + robust node-size e2e | done (CI green: run 40416566783) | T26 | frontend/ | make check && make e2e; CI run green |
 | T28 | Expanded network view (overlay + true full screen), wheel zoom while expanded [sonnet] | done | T27 | frontend/ | make check && CI=1 make e2e |
+| T29 | License under Apache-2.0: LICENSE, NOTICE, package metadata, README section [haiku] | done | – | LICENSE, NOTICE, backend/pyproject.toml, frontend/package.json(+lock), README.md | make check |
 
 ## Log
 - 2026-10-26: profile scale factor shipped (d1d031c). T6 approved by user; sub-agent started.
@@ -133,3 +134,5 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 - T27 done: root cause = Cytoscape stale container-offset cache after <main> scroll on slow CI (fixed via cache invalidation on pointerdown) + click fallback for non-selectable targets. make check (69 pytest, 95 vitest), CI=1 make e2e 24/24 verified. Pushed with README + model-choice commits.
 - T28 approved by user (Sonnet); sub-agent started.
 - CI run 40416566783 on df6c40a: SUCCESS (first fully green CI). T28 done: make check (69 pytest, 95 vitest) + CI=1 make e2e (28/28) verified; screenshots reviewed. Pushed.
+- T29 (Apache-2.0 licence) approved by user; haiku sub-agent started.
+- T29 done: LICENSE (verbatim apache.org text, body matches on-disk Playwright copy), NOTICE, pyproject license (wheel METADATA License-Expression: Apache-2.0), package.json license, README section. package-lock.json left unchanged (npm --package-lock-only added unrelated nested entries; reverted). make check (69 pytest, 95 vitest) verified.

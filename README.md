@@ -49,3 +49,8 @@ Reproduce locally (`make dev` can keep running; e2e uses its own ports 8100/5180
 ```bash
 make check && make e2e      # add CI=1 to get CI's retries and HTML report
 ```
+
+## License
+
+Apache License 2.0; see `LICENSE` and `NOTICE`. GridSim depends on
+[power-grid-model](https://github.com/PowerGridModel/power-grid-model) (MPL-2.0), used unmodified as a library.
