@@ -13,15 +13,18 @@ import { TopologyLegend } from './Legend'
 import type { DiagramLayout } from './NetworkDiagram'
 import { NetworkDiagram } from './NetworkDiagram'
 import type { EffectiveTopology } from './overrides'
+import { addedElements, structureKey, withAdditions } from './additions'
 import { changedElements, effectiveTopology } from './overrides'
 import { useNetworkSelection } from './useNetworkSelection'
 
 /**
  * Diagram + details panel + searchable element table, sharing one selection.
- * With `editing`, the table's editable fields become inline inputs (per-case overrides)
- * and changed elements are marked in the diagram. `topology` is the network file's topology
- * (the table needs the file values, the diagram layout stays put); the details panel and the
- * diagram's branch status show `effective` (overrides applied; computed here when not given).
+ * With `editing`, the table's editable fields become inline inputs (per-case overrides), the
+ * case's added elements (`editing.additions`) join the topology, and changed or added elements are
+ * marked in the diagram. `topology` is the network file's topology; the table shows it with the
+ * additions (their values count as "file" values), the diagram re-lays out only when the additions
+ * change structurally. The details panel and the diagram's statuses show `effective` (additions and
+ * overrides applied; computed here when not given).
  */
 export function NetworkExplorer({
   topology,
@@ -37,8 +40,15 @@ export function NetworkExplorer({
 }) {
   const theme = useChartTheme()
   const overrides = editing?.overrides
-  const changed = useMemo(() => changedElements(overrides ?? []), [overrides])
-  const ownEffective = useMemo(() => (effectiveProp ? undefined : effectiveTopology(topology, overrides ?? [])), [effectiveProp, topology, overrides])
+  const additions = editing?.additions
+  const changed = useMemo(() => new Set([...changedElements(overrides ?? []), ...addedElements(additions)]), [overrides, additions])
+  /** file topology + additions: the table's rows and "file" values */
+  const base = useMemo(() => withAdditions(topology, additions), [topology, additions])
+  const structure = structureKey(additions)
+  // Layout input: only a structural change (element added/removed/reconnected) re-lays out the diagram.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const layoutTopology = useMemo(() => base, [topology, structure])
+  const ownEffective = useMemo(() => (effectiveProp ? undefined : effectiveTopology(base, overrides ?? [])), [effectiveProp, base, overrides])
   const effective = effectiveProp ?? ownEffective!
   const { selected, focusElement, revealInTable, backToDiagram, tableRef, diagramRef } = useNetworkSelection()
   const [layout, setLayout] = useState<DiagramLayout>('auto')
@@ -75,13 +85,13 @@ export function NetworkExplorer({
             >
               <NetworkDiagram
                 ref={diagramRef}
-                topology={topology}
+                topology={layoutTopology}
                 selected={selected}
                 onSelect={(r) => focusElement(r, 'diagram')}
                 layout={layout}
                 showAppliances={showAppliances}
                 height={520}
-                legend={<TopologyLegend topology={topology} theme={theme} changed={changed.size > 0} status={effective.topology} />}
+                legend={<TopologyLegend topology={layoutTopology} theme={theme} changed={changed.size > 0} status={effective.topology} />}
                 changed={changed}
                 statusTopology={effective.topology}
               />
@@ -113,7 +123,7 @@ export function NetworkExplorer({
       </ExpandableNetwork>
       <ElementTable
         ref={tableRef}
-        topology={topology}
+        topology={base}
         selected={selected}
         onSelect={(r) => focusElement(r, 'table')}
         onBackToDiagram={backToDiagram}

@@ -14,6 +14,7 @@ export function defaultCase(): CaseStudy {
     limits: { u_min_pu: 0.95, u_max_pu: 1.05, loading_max: 1.0 },
     profile_assignments: [],
     network_overrides: [],
+    network_additions: [],
   }
 }
 

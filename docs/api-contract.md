@@ -34,6 +34,20 @@ v0 fields: `sym_load`/`sym_gen` `p_specified, q_specified, status`; `line` `r1, 
 `transformer.tap_pos` is an integer within the element's `tap_min..tap_max`. The UI shows `from_status`/`to_status` as
 one "in service" toggle that sets both.
 
+`GET /api/networks/addable-fields` → `AddableComponentSpec[]`: the components a case may add with `network_additions`, in
+form order, with the fields the "add element" form shows and the PGM attributes filled automatically.
+```json
+[{"component": "line", "label": "Line", "kind": "branch",
+  "fields": [{"field": "from_node", "label": "From node", "unit": "", "scale": 1.0, "kind": "node", "required": true, "default": null, "min": null, "max": null},
+             {"field": "r1", "label": "R1", "unit": "Ω", "scale": 1.0, "kind": "float", "required": true, "default": 0.206, "min": 0, "max": null}],
+  "fixed": {"from_status": 1.0, "to_status": 1.0, "tan1": 0.0}}]
+```
+`component` is one of `node | line | link | sym_load | sym_gen | shunt`; `kind` (`node | branch | appliance`) is the element
+table tab. Field `kind` is `float | int | bool | node` (`node` = a node id reference); `default` is the SI value the form
+prefills (`null` = none; the UI prefills node `u_rated` from the network). v0 defaults: line = 1 km 10 kV XLPE 3x1x150 mm² Al
+cable (R1 0.206 Ω, X1 0.11 Ω, C1 0.33 µF, I_n 315 A); load/generator P 0.1 MW, Q 0; shunt G1 0. `fixed`: branch statuses 1,
+appliance `status` 1, load/gen `type` 0 (const power), line `tan1` 0, shunt `g1` 0; an addition's `attrs` may override them.
+
 `POST /api/networks/upload` (multipart, field `file`: PGM JSON input file) → `NetworkItem` (source `"upload"`)
 
 `GET /api/networks/{source}/{key}` → `NetworkTopology`
@@ -46,7 +60,8 @@ one "in service" toggle that sets both.
   "appliances": [{"id": 104, "type": "sym_load", "name": "Load1", "node": 26, "p_specified": 1500000.0, "q_specified": 1000000.0, "in_service": true,
                   "params": {"p_specified": 1500000.0, "q_specified": 1000000.0, "status": 1.0}}],
   "sources":    [{"id": 99, "name": "source1", "node": 23, "u_ref": 1.0, "params": {"u_ref": 1.0}}],
-  "counts": {"node": 47}
+  "counts": {"node": 47},
+  "max_id": 128
 }
 ```
 Branch `type` is one of `line | link | transformer | generic_branch | three_winding_transformer` (3-winding: see `nodes` field below).
@@ -54,7 +69,8 @@ For `three_winding_transformer` the branch has `from_node`=node_1, `to_node`=nod
 `sym_load | sym_gen | asym_load | asym_gen | shunt`. Only `sym_load` and `sym_gen` are profile targets in v0.
 Shunt appliances also carry `b1`, the positive-sequence susceptance in S (> 0 capacitive, < 0 inductive; `null` for other
 appliance types), which the diagram uses to draw a capacitor or reactor symbol.
-Branches, appliances and sources carry `params`: the network file values (SI units) of that component's editable fields
+`max_id` is the largest PGM id over all components of the file (including ones the topology does not list, e.g. voltage
+regulators); the UI gives new elements ids above it. Branches, appliances and sources carry `params`: the network file values (SI units) of that component's editable fields
 (empty when it has none). A field the file does not set (PGM NaN, e.g. `sn` of IEEE 14's generic branches) is `null`;
 a case may still override it.
 
@@ -93,6 +109,11 @@ v0 generators: `constant` (value), `residential_load`, `commercial_load`, `pv` (
   "network_overrides": [                                   // default []; edits on top of the unchanged network file
     {"component": "sym_load", "id": 104, "field": "p_specified", "value": 3000000.0}   // value in SI/PGM units, bools 0/1
   ],
+  "network_additions": [                                   // default []; new elements on top of the unchanged network file
+    {"component": "node", "id": 129, "name": "New node 1", "attrs": {"u_rated": 10500.0}, "position": null},
+    {"component": "line", "id": 130, "name": "New line 1",
+     "attrs": {"from_node": 5, "to_node": 129, "r1": 0.206, "x1": 0.11, "c1": 3.3e-7, "i_n": 315.0}, "position": null}
+  ],
   "created_at": "…", "updated_at": "…"
 }
 ```
@@ -100,6 +121,14 @@ Overrides are written into a copy of the network's input data before profiles ar
 overridden base value. Validation reports, naming the element and field: unknown/non-editable component, unknown id,
 non-editable field, duplicates, out-of-range or non-integer/non-boolean values, and PGM `validate_input_data` failures
 after the overrides (prefixed `After overrides:`). The run's frozen `case.json` contains the overrides.
+Additions (`NetworkAddition`: `component`, `id`, `name` (non-empty), `attrs` = PGM input attributes in SI units with node
+references as ids and booleans 0/1, optional `position: {x, y}` for the diagram, stored as-is) are appended to copies of the
+input arrays **before** the overrides, so overrides, profile targets (`ids`) and results may refer to added elements, which
+appear under their `name`. Validation reports, naming the new element: duplicate id, id already used by any element of the
+network (ids are unique across components), missing required or unknown attribute, non-finite or out-of-range values, a node
+reference that is neither a file node nor an added node, a line/link with from = to node, PGM `validate_input_data`
+failures after the additions (prefixed `After additions:`), and a warning for a link between nodes of different `u_rated`.
+When an addition has an error, the override and study checks are skipped. The run's frozen `case.json` contains the additions.
 `calculation.method` is one of `newton_raphson | iterative_current | linear | linear_current`.
 `resolution_minutes` is an integer from 1 to 1440, and the number of timesteps must be ≤ 100 000.
 

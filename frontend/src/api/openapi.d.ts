@@ -58,6 +58,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/networks/addable-fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Addable Fields
+         * @description The components a case may add (`network_additions`), with their form fields.
+         */
+        get: operations["get_addable_fields"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/networks/upload": {
         parameters: {
             query?: never;
@@ -392,6 +412,82 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AddableComponentSpec
+         * @description One component that a case may add on top of the network file.
+         */
+        AddableComponentSpec: {
+            /**
+             * Component
+             * @enum {string}
+             */
+            component: "node" | "line" | "link" | "sym_load" | "sym_gen" | "shunt";
+            /** Label */
+            label: string;
+            /**
+             * Kind
+             * @description Element table tab
+             * @enum {string}
+             */
+            kind: "node" | "branch" | "appliance";
+            /** Fields */
+            fields: components["schemas"]["AddableField"][];
+            /**
+             * Fixed
+             * @description PGM input attributes filled automatically (attrs may still set them)
+             */
+            fixed?: {
+                [key: string]: number;
+            };
+        };
+        /**
+         * AddableField
+         * @description A field of the "add element" form (networks/addable.py). `kind: node` is a node reference.
+         */
+        AddableField: {
+            /** Field */
+            field: string;
+            /** Label */
+            label: string;
+            /**
+             * Unit
+             * @description Display unit
+             * @default
+             */
+            unit: string;
+            /**
+             * Scale
+             * @description display value = SI value * scale
+             * @default 1
+             */
+            scale: number;
+            /**
+             * Kind
+             * @default float
+             * @enum {string}
+             */
+            kind: "float" | "int" | "bool" | "node";
+            /**
+             * Required
+             * @default true
+             */
+            required: boolean;
+            /**
+             * Default
+             * @description Default SI value (prefilled by the form)
+             */
+            default?: number | null;
+            /**
+             * Min
+             * @description Minimum SI value (inclusive)
+             */
+            min?: number | null;
+            /**
+             * Max
+             * @description Maximum SI value (inclusive)
+             */
+            max?: number | null;
+        };
         /** Body_upload_network */
         Body_upload_network: {
             /** File */
@@ -466,6 +562,11 @@ export interface components {
              * @description Edits on top of the unchanged network file
              */
             network_overrides?: components["schemas"]["NetworkOverride"][];
+            /**
+             * Network Additions
+             * @description New elements on top of the unchanged network file
+             */
+            network_additions?: components["schemas"]["NetworkAddition"][];
             /** Created At */
             created_at?: string | null;
             /** Updated At */
@@ -611,6 +712,33 @@ export interface components {
              */
             loading_max: number;
         };
+        /**
+         * NetworkAddition
+         * @description A new element added by a case on top of the unchanged network file.
+         */
+        NetworkAddition: {
+            /**
+             * Component
+             * @enum {string}
+             */
+            component: "node" | "line" | "link" | "sym_load" | "sym_gen" | "shunt";
+            /**
+             * Id
+             * @description PGM id, unique across all components of the network
+             */
+            id: number;
+            /** Name */
+            name: string;
+            /**
+             * Attrs
+             * @description PGM input attributes in SI units (node refs as ids, booleans as 0/1)
+             */
+            attrs?: {
+                [key: string]: number;
+            };
+            /** @description Diagram placement (optional) */
+            position?: components["schemas"]["Position"] | null;
+        };
         /** NetworkItem */
         NetworkItem: {
             /** Source */
@@ -682,6 +810,12 @@ export interface components {
             counts: {
                 [key: string]: number;
             };
+            /**
+             * Max Id
+             * @description Largest PGM id over all components (new elements get ids above it)
+             * @default -1
+             */
+            max_id: number;
         };
         /** NodeExtremes */
         NodeExtremes: {
@@ -699,6 +833,13 @@ export interface components {
             t_u_min: string | null;
             /** T U Max */
             t_u_max: string | null;
+        };
+        /** Position */
+        Position: {
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
         };
         /** ProfileAssignment */
         ProfileAssignment: {
@@ -1163,6 +1304,26 @@ export interface operations {
                     "application/json": {
                         [key: string]: components["schemas"]["EditableField"][];
                     };
+                };
+            };
+        };
+    };
+    get_addable_fields: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddableComponentSpec"][];
                 };
             };
         };

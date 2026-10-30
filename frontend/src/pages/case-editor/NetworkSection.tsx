@@ -1,9 +1,10 @@
 import { Network, Upload } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
-import { useEditableFields, useNetworks, useUploadNetwork } from '../../api/hooks'
-import type { CaseStudy, ComponentCounts, NetworkOverride, NetworkRef } from '../../api/schema'
+import { useAddableFields, useEditableFields, useNetworks, useUploadNetwork } from '../../api/hooks'
+import type { CaseStudy, ComponentCounts, NetworkAddition, NetworkOverride, NetworkRef } from '../../api/schema'
 import type { ElementTableEditing } from '../../components/network'
 import { NetworkExplorer } from '../../components/network'
+import { removeAdditions } from '../../components/network/additions'
 import { Badge, Button, Card, CardBody, CardHeader, ConfirmDialog, EmptyState, ErrorState, Field, LoadingState, Select, useToast } from '../../components/ui'
 import { humanize } from '../../lib/format'
 import { errorMessage } from '../../lib/utils'
@@ -25,18 +26,19 @@ export function CountBadges({ counts }: { counts: ComponentCounts }) {
 
 export function NetworkSection({ draft, onChange }: { draft: CaseStudy; onChange: (c: CaseStudy) => void }) {
   const networks = useNetworks()
-  const { topo, overrides, effective } = useCaseTopology(draft)
+  const { topo, overrides, additions, effective } = useCaseTopology(draft)
   const upload = useUploadNetwork()
   const toast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
   const editable = useEditableFields()
+  const addable = useAddableFields()
   const [pendingNetwork, setPendingNetwork] = useState<NetworkRef | null>(null)
 
-  /** Switching networks clears the overrides (they refer to the old network's elements). */
+  /** Switching networks clears the overrides and additions (they refer to the old network's elements). */
   const switchNetwork = (ref: NetworkRef) => {
     if (ref.source === draft.network.source && ref.key === draft.network.key) return
-    if (overrides.length > 0) setPendingNetwork(ref)
-    else onChange({ ...draft, network: ref, network_overrides: [] })
+    if (overrides.length > 0 || additions.length > 0) setPendingNetwork(ref)
+    else onChange({ ...draft, network: ref, network_overrides: [], network_additions: [] })
   }
 
   const editing = useMemo<ElementTableEditing | undefined>(
@@ -46,9 +48,18 @@ export function NetworkSection({ draft, onChange }: { draft: CaseStudy; onChange
             fields: editable.data,
             overrides,
             onChange: (next: NetworkOverride[]) => onChange({ ...draft, network_overrides: next }),
+            addable: addable.data,
+            additions,
+            // removed additions also drop the overrides and profile target ids that referred to them
+            onAdditionsChange: (next: NetworkAddition[]) => {
+              const keep = new Set(next.map((a) => a.id))
+              const cleaned = removeAdditions({ ...draft, network_additions: additions }, additions.filter((a) => !keep.has(a.id)).map((a) => a.id))
+              onChange({ ...cleaned, network_additions: next })
+            },
+            onRevertAll: () => onChange(removeAdditions({ ...draft, network_overrides: [], network_additions: additions }, additions.map((a) => a.id))),
           }
         : undefined,
-    [editable.data, overrides, draft, onChange],
+    [editable.data, addable.data, overrides, additions, draft, onChange],
   )
 
   const value = draft.network.source ? `${draft.network.source}/${draft.network.key}` : ''
@@ -117,7 +128,7 @@ export function NetworkSection({ draft, onChange }: { draft: CaseStudy; onChange
         <Card>
           <CardHeader
             title="Topology"
-            description="Pan with drag, zoom with + / −; click an element for details. Edit parameters in the table: changes apply to this case only, the network file stays unchanged."
+            description="Pan with drag, zoom with + / −; click an element for details. Edit parameters or add equipment in the table: changes apply to this case only, the network file stays unchanged."
           />
           <CardBody>
             {topo.isLoading ? (
@@ -136,12 +147,17 @@ export function NetworkSection({ draft, onChange }: { draft: CaseStudy; onChange
       <ConfirmDialog
         open={pendingNetwork !== null}
         title="Switch network?"
-        message={`This case has ${overrides.length} parameter override${overrides.length === 1 ? '' : 's'} on the current network. Switching networks removes them.`}
+        message={`This case has ${[
+          overrides.length ? `${overrides.length} parameter override${overrides.length === 1 ? '' : 's'}` : '',
+          additions.length ? `${additions.length} new element${additions.length === 1 ? '' : 's'}` : '',
+        ]
+          .filter(Boolean)
+          .join(' and ')} on the current network. Switching networks removes them.`}
         confirmLabel="Switch and clear"
         danger
         onCancel={() => setPendingNetwork(null)}
         onConfirm={() => {
-          if (pendingNetwork) onChange({ ...draft, network: pendingNetwork, network_overrides: [] })
+          if (pendingNetwork) onChange({ ...draft, network: pendingNetwork, network_overrides: [], network_additions: [] })
           setPendingNetwork(null)
         }}
       />

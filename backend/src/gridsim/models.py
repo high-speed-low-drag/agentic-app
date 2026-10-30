@@ -66,6 +66,37 @@ class EditableField(BaseModel):
     max: float | None = Field(None, description="Maximum SI value (inclusive)")
 
 
+AddableComponent = Literal["node", "line", "link", "sym_load", "sym_gen", "shunt"]
+AddableFieldKind = Literal["float", "int", "bool", "node"]
+
+
+class AddableField(BaseModel):
+    """A field of the "add element" form (networks/addable.py). `kind: node` is a node reference."""
+
+    field: str
+    label: str
+    unit: str = Field("", description="Display unit")
+    scale: float = Field(1.0, description="display value = SI value * scale")
+    kind: AddableFieldKind = "float"
+    required: bool = True
+    default: float | None = Field(None, description="Default SI value (prefilled by the form)")
+    min: float | None = Field(None, description="Minimum SI value (inclusive)")
+    max: float | None = Field(None, description="Maximum SI value (inclusive)")
+
+
+class AddableComponentSpec(BaseModel):
+    """One component that a case may add on top of the network file."""
+
+    component: AddableComponent
+    label: str
+    kind: Literal["node", "branch", "appliance"] = Field(description="Element table tab")
+    fields: list[AddableField]
+    fixed: dict[str, float] = Field(
+        default_factory=dict,
+        description="PGM input attributes filled automatically (attrs may still set them)",
+    )
+
+
 # None = the network file has no value for that field (e.g. a generic_branch without `sn`).
 ParamValues = dict[str, float | None]
 
@@ -124,6 +155,9 @@ class NetworkTopology(BaseModel):
     appliances: list[TopologyAppliance]
     sources: list[TopologySource]
     counts: dict[str, int]
+    max_id: int = Field(
+        -1, description="Largest PGM id over all components (new elements get ids above it)"
+    )
 
 
 # --- Case study -------------------------------------------------------------------------------
@@ -199,6 +233,24 @@ class NetworkOverride(BaseModel):
     value: float = Field(description="New value in SI/PGM units (booleans as 0/1)")
 
 
+class Position(BaseModel):
+    x: float
+    y: float
+
+
+class NetworkAddition(BaseModel):
+    """A new element added by a case on top of the unchanged network file."""
+
+    component: AddableComponent
+    id: int = Field(description="PGM id, unique across all components of the network")
+    name: str = Field(min_length=1)
+    attrs: dict[str, float] = Field(
+        default_factory=dict,
+        description="PGM input attributes in SI units (node refs as ids, booleans as 0/1)",
+    )
+    position: Position | None = Field(None, description="Diagram placement (optional)")
+
+
 class CaseStudy(BaseModel):
     id: str | None = None
     name: str = Field(min_length=1)
@@ -211,6 +263,9 @@ class CaseStudy(BaseModel):
     profile_assignments: list[ProfileAssignment] = Field(default_factory=list)
     network_overrides: list[NetworkOverride] = Field(
         default_factory=list, description="Edits on top of the unchanged network file"
+    )
+    network_additions: list[NetworkAddition] = Field(
+        default_factory=list, description="New elements on top of the unchanged network file"
     )
     created_at: datetime | None = None
     updated_at: datetime | None = None

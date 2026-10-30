@@ -10,6 +10,7 @@ from power_grid_model import initialize_array
 
 from gridsim.engine import iter_power_flow
 from gridsim.models import CaseStudy, ValidationIssue
+from gridsim.networks.additions import apply_additions
 from gridsim.networks.base import LoadedNetwork
 from gridsim.networks.overrides import apply_overrides
 from gridsim.profiles import PROFILE_GENERATORS
@@ -130,7 +131,9 @@ class TimeseriesPowerFlow:
     ) -> StudyOutcome:
         ts = case.time.timestamps()
         n = len(ts)
-        # Overrides edit the base values, so profiles scale the overridden values.
+        # Additions first (overrides may edit added elements); overrides edit the base values,
+        # so profiles scale the overridden values.
+        net = apply_additions(net, case.network_additions)
         net = apply_overrides(net, case.network_overrides)
         progress(0.0, "Generating profiles")
         update = build_update(case, net, ts)

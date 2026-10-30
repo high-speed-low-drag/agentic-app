@@ -8,6 +8,7 @@ import type {
   EnvelopeResponse,
   Health,
   HeatmapResponse,
+  AddableComponentSpec,
   EditableFields,
   NetworkItem,
   NetworkTopology,
@@ -133,6 +134,7 @@ export const api = {
   // networks
   listNetworks: () => request<NetworkItem[]>('/networks'),
   getEditableFields: () => request<EditableFields>('/networks/editable-fields'),
+  getAddableFields: () => request<AddableComponentSpec[]>('/networks/addable-fields'),
   getNetwork: (source: string, key: string) =>
     request<NetworkTopology>(`/networks/${enc(source)}/${enc(key)}`),
   uploadNetwork: (file: File) => {

@@ -22,6 +22,7 @@ export const qk = {
   networks: ['networks'] as const,
   network: (source: string, key: string) => ['network', source, key] as const,
   editableFields: ['editable-fields'] as const,
+  addableFields: ['addable-fields'] as const,
   generators: ['profile-generators'] as const,
   preview: (body: ProfilePreviewRequest) => ['profile-preview', body] as const,
   cases: ['cases'] as const,
@@ -59,6 +60,10 @@ export function useNetworkTopology(source?: string, key?: string) {
 
 export function useEditableFields() {
   return useQuery({ queryKey: qk.editableFields, queryFn: api.getEditableFields, staleTime: Infinity })
+}
+
+export function useAddableFields() {
+  return useQuery({ queryKey: qk.addableFields, queryFn: api.getAddableFields, staleTime: Infinity })
 }
 
 export function useUploadNetwork() {

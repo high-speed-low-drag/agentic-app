@@ -68,6 +68,37 @@ export interface EditableField {
 /** Component -> editable fields. */
 export type EditableFields = Record<string, EditableField[]>
 
+/** PGM components a case may add on top of the network file (`network_additions`). */
+export type AddableComponent = 'node' | 'line' | 'link' | 'sym_load' | 'sym_gen' | 'shunt'
+
+/** `node` = a node id reference. */
+export type AddableFieldKind = 'float' | 'int' | 'bool' | 'node'
+
+/** A field of the "add element" form (GET /networks/addable-fields). */
+export interface AddableField {
+  field: string
+  label: string
+  unit: string
+  /** display value = SI value * scale */
+  scale: number
+  kind: AddableFieldKind
+  required: boolean
+  /** SI value the form prefills (null = none) */
+  default: number | null
+  min: number | null
+  max: number | null
+}
+
+export interface AddableComponentSpec {
+  component: AddableComponent
+  label: string
+  /** element table tab */
+  kind: 'node' | 'branch' | 'appliance'
+  fields: AddableField[]
+  /** PGM attributes filled automatically (attrs may still set them) */
+  fixed: Record<string, number>
+}
+
 export interface TopologyNode {
   id: number
   name: string
@@ -113,6 +144,8 @@ export interface NetworkTopology extends NetworkRef {
   appliances: TopologyAppliance[]
   sources: TopologySource[]
   counts: ComponentCounts
+  /** largest PGM id over all components of the file (new elements get ids above it) */
+  max_id?: number
 }
 
 // ---------------------------------------------------------------- profiles
@@ -219,6 +252,23 @@ export interface NetworkOverride {
   value: number
 }
 
+export interface Position {
+  x: number
+  y: number
+}
+
+/** A new element added by a case on top of the unchanged network file. */
+export interface NetworkAddition {
+  component: AddableComponent
+  /** PGM id, unique across all components of the network */
+  id: number
+  name: string
+  /** PGM input attributes in SI units (node refs as ids, booleans 0/1) */
+  attrs: Record<string, number>
+  /** diagram placement (optional; phase 2) */
+  position?: Position | null
+}
+
 export interface CaseStudy {
   id?: string
   name: string
@@ -231,6 +281,8 @@ export interface CaseStudy {
   profile_assignments: ProfileAssignment[]
   /** edits on top of the unchanged network file (default []) */
   network_overrides: NetworkOverride[]
+  /** new elements on top of the unchanged network file (default []) */
+  network_additions: NetworkAddition[]
   created_at?: Timestamp
   updated_at?: Timestamp
 }

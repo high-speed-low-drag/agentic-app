@@ -17,6 +17,7 @@ import {
   StatusLegend,
   VoltageScaleLegend,
 } from '../../components/network'
+import { addedElements } from '../../components/network/additions'
 import { changedElements } from '../../components/network/overrides'
 import { EmptyState, ErrorState, IconButton, LoadingState, Segmented, Spinner } from '../../components/ui'
 import { cn } from '../../lib/utils'
@@ -95,7 +96,8 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
 
   // the run's own network: branches switched off by the frozen case's overrides are drawn dashed
   const overrides = ctx.case?.network_overrides
-  const changed = useMemo(() => changedElements(overrides ?? []), [overrides])
+  const additions = ctx.case?.network_additions
+  const changed = useMemo(() => new Set([...changedElements(overrides ?? []), ...addedElements(additions)]), [overrides, additions])
   const status = useMemo(
     () =>
       ctx.topology

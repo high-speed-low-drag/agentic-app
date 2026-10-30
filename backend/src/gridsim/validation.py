@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from gridsim.models import CaseStudy, ValidationIssue, ValidationResult
 from gridsim.networks import load_network
+from gridsim.networks.additions import apply_additions, check_additions
 from gridsim.networks.overrides import apply_overrides, check_overrides
 from gridsim.studies import STUDY_TYPES
 
@@ -20,6 +21,14 @@ def validate_case(case: CaseStudy) -> ValidationResult:
     except Exception as exc:  # noqa: BLE001
         issues.append(ValidationIssue(level="error", message=f"Network: {exc}"))
         net = None
+    if net is not None and case.network_additions:
+        # Additions first: overrides and profile targets may refer to added elements.
+        addition_issues = check_additions(net, case.network_additions)
+        issues += addition_issues
+        if any(i.level == "error" for i in addition_issues):
+            net = None  # later checks would only repeat "not in network" for the added elements
+        else:
+            net = apply_additions(net, case.network_additions)
     if net is not None and case.network_overrides:
         override_issues = check_overrides(net, case.network_overrides)
         issues += override_issues

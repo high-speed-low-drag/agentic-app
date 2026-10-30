@@ -125,7 +125,7 @@ These are the only implementation constraints. Everything else is open to the bu
 |------|---------|
 | **Network** | An electrical network in PGM input form: nodes (buses), branches (lines, links, transformers, generic branches, three-winding transformers), appliances (loads, generators, shunts) and sources (connections to an external grid). Identified by *source* + *key* (e.g. sample `vision_mv`). Element ids are the integer ids from the file; element names come from the file's `Name` field, otherwise `<type> <id>` (e.g. `node 3`, `sym_gen 301`). Network files are never modified by the app. |
 | **Network source** | Where networks come from: `sample` (bundled), `upload` (files the user uploaded) and, in future, other sources such as a database. |
-| **Case study (case)** | A saved study definition: name, description, study type (time-series power flow), network, time window, calculation settings, limits, an ordered list of profile assignments and a list of equipment overrides. A case can be edited and run any number of times. |
+| **Case study (case)** | A saved study definition: name, description, study type (time-series power flow), network, time window, calculation settings, limits, an ordered list of profile assignments, a list of equipment overrides and a list of added elements (section 4.6a). A case can be edited and run any number of times. |
 | **Time window** | Start (inclusive), end (exclusive) and resolution in whole minutes (1 to 1440). Timesteps are start, start + resolution, … up to but not including end; a partial last interval still counts as a timestep, so the count is `ceil((end − start) / resolution)`. At most **100 000** timesteps per case. Times are local wall-clock times with no time zone; daylight-saving changes are ignored (every day has 24 h). |
 | **Profile generator** | A built-in, deterministic function that produces a dimensionless multiplier series `m(t)` for a number of elements over the case timestamps (e.g. residential load, solar PV, EV charging, CSV). Each generator declares its own parameters, their types, defaults, ranges and help texts. |
 | **Profile assignment** | One entry in a case's profile list: a generator with its parameter values, a target (a component type, `sym_load` or `sym_gen`, and either all of its elements or a chosen subset), a mode (scale or add), a scale factor and, in add mode, a magnitude. |
@@ -311,10 +311,10 @@ Requirements:
 
 - `NET-5` Element names are read from the file's `Name` fields where present and non-empty; otherwise the name is
   `<component> <id>` (e.g. `node 1`).
-- `NET-6` Switching to another network removes the case's equipment overrides, because they refer to elements of
-  the old network. When there are overrides, confirm first: title `Switch network?`, text `This case has N parameter
-  override(s) on the current network. Switching networks removes them.`, button `Switch and clear`. Cancel keeps
-  the current network and overrides.
+- `NET-6` Switching to another network removes the case's equipment overrides and added elements, because they refer
+  to elements of the old network. When there are any, confirm first: title `Switch network?`, text `This case has N
+  parameter override(s) [and M new element(s)] on the current network. Switching networks removes them.`, button
+  `Switch and clear`. Cancel keeps the current network, overrides and additions.
 - `NET-7` If a case refers to a network that no longer exists (e.g. a deleted upload), the picker shows
   `<key> · <source> (unavailable)` and validation reports the network error (section 4.9).
 - `NET-8` Uploaded networks persist across restarts and are never modified by the app.
@@ -514,6 +514,60 @@ Acceptance criteria:
   maximum 12` and the case cannot run.
 - Given Vision MV line `R1` (rated current 360 A), when its rated current is set to 90 A, then its max loading in a
   run is exactly 4× that of the unedited run.
+
+### 4.6a Adding equipment
+
+**User story.** As a user I want to add new equipment (a node, a line or link, a load, generator or shunt) to the
+network of this case only, from the element table, then edit, run and delete it like any other element, without
+changing the network file.
+
+Requirements:
+
+- `ADD-1` New elements are stored in the case as **additions** (component, a new PGM id, name, attributes in SI
+  units with node references as ids, optional diagram position). The network file is never changed. Additions are
+  saved with the case, frozen into each run and applied before overrides and profiles.
+- `ADD-2` Addable components: node, line, link, symmetric load, symmetric generator, shunt. Each table tab except
+  `Sources` has a button: `Add node`, `Add branch` (type Line or Link) or `Add appliance` (type Load, Generator or
+  Shunt). The set of addable components and their form fields is a declared registry (new component = one entry).
+- `ADD-3` The add dialog (`Add node` / `Add branch` / `Add appliance`) shows a type selector when the tab offers more
+  than one type, a name prefilled unique (`New node 1`, `New line 1`, `New load 1`, …), node selectors searchable by
+  name or id (new nodes included), and the type's fields with display units and defaults:
+
+  | Type | Fields (display unit, default) | Filled automatically |
+  |------|--------------------------------|----------------------|
+  | Node | Rated voltage (kV, the most common rated voltage of the network) | – |
+  | Line | From node, To node, R1 (Ω, 0.206), X1 (Ω, 0.11), C1 (µF, 0.33), Rated current (A, 315) — a 1 km 10 kV XLPE 3x1x150 mm² Al cable | in service at both ends, tan δ 0 |
+  | Link | From node, To node | in service at both ends |
+  | Load, Generator | Node, P (MW, 0.1), Q (Mvar, 0) | in service, constant power |
+  | Shunt | Node, G1 (µS, 0, optional), B1 (µS) | in service |
+
+- `ADD-4` The dialog validates inline: `Enter a name`, `Select a node`, `Unknown node`, `Required`,
+  `Must differ from the from node`, `Minimum is <value>`. The add button (`Add <type>`) appends the element with
+  id = 1 + the largest id of the network file (all components) and of the case's additions.
+- `ADD-5` Added elements appear in the table with a `New` badge, in the diagram (laid out automatically, marked as
+  changed) and in the details panel. Each counts as one change in `N change(s)`, the tab badge and `Changed only`.
+- `ADD-6` Added elements are edited in the same table cells as file elements; an edit changes the addition's own
+  values (no override, no `was …` cue). Their profile targeting, effective values and results work like file
+  elements, and results show them by name.
+- `ADD-7` Only added elements have a delete button (`Delete <name>`), with confirmation `Delete <name>?`. Deleting an
+  added node also deletes the new elements connected to it; the confirmation lists them (`Deleting this node also
+  deletes the new elements connected to it: …`, button `Delete N elements`). Deleting removes overrides and profile
+  target ids that referred to the deleted elements. File elements cannot be deleted (switch them out of service).
+- `ADD-8` `Revert all` also removes all additions and always asks first when there are any. Switching networks
+  removes additions together with overrides (`NET-6`).
+- `ADD-9` Additions are validated (section 4.9, `VAL-4a`).
+
+Acceptance criteria:
+
+- Given a new case on Vision MV, when I add a node, then the dialog prefills `New node 1` and `10.5` kV, and the
+  Nodes tab shows `New node 1` with a `New` badge; its id is 129.
+- Given that node, when I add a line from `KNP 3` to `New node 1`, then R1 is prefilled `0.206` Ω; choosing the same
+  node twice shows `Must differ from the from node`.
+- Given a load of 2 MW on `New node 1`, then the header says `3 changes`, the diagram shows and marks the three new
+  elements, and after saving and running, the run succeeds, the frozen case contains the three additions, the
+  summary lists `New node 1` and the element time series offers `New load 1`.
+- Given those additions, when I press `Delete New node 1`, then the confirmation lists `New line 1` and
+  `New load 1`; when I delete only `New load 1` and save, then the case keeps two additions.
 
 ### 4.7 Time and calculation settings
 
@@ -744,7 +798,24 @@ Requirements:
   | Below / above the allowed range | `<label>: value <v> is below the minimum <lo>` / `<label>: value <v> is above the maximum <hi>` |
   | The network with all overrides applied fails PGM's input validation | `After overrides: <PGM error> (<up to 5 element names>)` |
 
-  The assignment checks see the network with overrides applied.
+- `VAL-4a` Addition checks, with `<label>` = `New <component> '<name>' (id <id>)`; all errors except the last row:
+
+  | Check | Message |
+  |-------|---------|
+  | Same id twice among the additions | `<label>: duplicate id among the new elements` |
+  | Id used by an element of the network file | `<label>: id is already used by '<name>' in the network` |
+  | Attribute not offered for the component | `<label>: unknown attribute '<a>'` |
+  | Not a finite number | `<label>: '<a>' must be a finite number` |
+  | Required attribute missing | `<label>: missing required attribute '<a>' (<label>)` |
+  | Node reference to neither a file node nor an added node | `<label>: <field> <id> is not a node of the network` |
+  | Line or link with the same node at both ends | `<label>: from node and to node must differ` |
+  | Below / above the allowed range, status other than 0/1 | `<label>: '<a>' <v> is below the minimum <lo>` / … / `<label>: 'status' must be 0 or 1` |
+  | The network with all additions fails PGM's input validation | `After additions: <PGM error> (<up to 5 element names>)` |
+  | Link between nodes of different rated voltage (warning) | `<label>: connects nodes of different rated voltage (<u1> kV and <u2> kV)` |
+
+  Additions are checked first; when one has an error, the override and assignment checks are skipped (they would
+  only repeat it). Overrides and assignments may refer to added elements.
+  The assignment checks see the network with additions and overrides applied.
 - `VAL-5` Saving a case whose time window is invalid is rejected with the server's message (e.g. `end must be after
   start`), shown in the validation panel, not only as a toast.
 - `VAL-6` Starting a run of an invalid case is rejected with `Case is invalid: <errors joined by '; '>`; the editor
@@ -1398,7 +1469,8 @@ Per network: source, key, name, description, and counts per component type. Per 
 - Any AI, LLM or chat feature.
 - Solvers other than power-grid-model; study types other than the time-series power flow (the product should allow
   adding study types later).
-- Editing network topology (adding or removing elements) or writing changes back to network files.
+- Writing changes back to network files, and deleting elements of the network file (they can be switched out of
+  service). Adding equipment is limited to the components of section 4.6a.
 - Network sources other than samples and uploads (a database or lakehouse source is a planned extension, section
   2).
 - Comparing two runs side by side and exporting results to files (possible future features).

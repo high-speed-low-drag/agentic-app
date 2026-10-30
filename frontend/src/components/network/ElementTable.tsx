@@ -1,9 +1,11 @@
-import { ArrowUpToLine, RotateCcw, Search, X } from 'lucide-react'
+import { ArrowUpToLine, Plus, RotateCcw, Search, Trash2, X } from 'lucide-react'
 import type { Ref } from 'react'
 import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
-import type { EditableFields, NetworkOverride, NetworkTopology } from '../../api/schema'
+import type { AddableComponentSpec, EditableFields, NetworkAddition, NetworkOverride, NetworkTopology } from '../../api/schema'
 import type { Column } from '../ui'
 import { Badge, Button, Checkbox, ConfirmDialog, Table, Tabs, TextInput } from '../ui'
+import { AddElementDialog } from './AddElementDialog'
+import { additionCounts, addedElements, deletionSet, setAdditionAttr } from './additions'
 import { BoolCell, NumberCell } from './EditableCell'
 import type { ElementKind, ElementRef } from './graph'
 import type { EditableColumn } from './overrides'
@@ -11,11 +13,21 @@ import { changeCounts, changedCells, changedElements, editableColumns, findOverr
 import type { TableRow as Row } from './selection'
 import { filtersToClear, matchesSearch, prefersReducedMotion, scrollTopToShow, tableRows } from './selection'
 
-/** Editing support: pass all three to make the editable fields' cells editable. */
+/**
+ * Editing support: `fields`, `overrides` and `onChange` make the editable fields' cells editable.
+ * With `addable` and `onAdditionsChange`, each tab gets an Add button and added elements (`additions`,
+ * already part of the table's `topology`) are edited (their own attrs) and deleted in place.
+ * `onAdditionsChange` receives the new list; the owner drops whatever referred to removed elements.
+ */
 export interface ElementTableEditing {
   fields: EditableFields
   overrides: NetworkOverride[]
   onChange: (next: NetworkOverride[]) => void
+  addable?: AddableComponentSpec[]
+  additions?: NetworkAddition[]
+  onAdditionsChange?: (next: NetworkAddition[]) => void
+  /** "Revert all": clear overrides and additions in one change (default: `onChange([])`) */
+  onRevertAll?: () => void
 }
 
 /** Imperative handle for the shared selection. */
@@ -30,6 +42,8 @@ export interface ElementTableHandle {
 const REVERT_CONFIRM_THRESHOLD = 5
 
 const plural = (n: number) => `${n} change${n === 1 ? '' : 's'}`
+const ADD_LABEL: Partial<Record<ElementKind, string>> = { node: 'Add node', branch: 'Add branch', appliance: 'Add appliance' }
+const NO_ADDITIONS: NetworkAddition[] = []
 
 /** Searchable tabbed table of nodes / branches / appliances / sources, optionally editable. */
 export function ElementTable({
@@ -54,6 +68,9 @@ export function ElementTable({
   const [q, setQ] = useState('')
   const [changedOnly, setChangedOnly] = useState(false)
   const [confirmRevert, setConfirmRevert] = useState(false)
+  const [adding, setAdding] = useState(false)
+  /** id of the added element whose deletion awaits confirmation */
+  const [deleting, setDeleting] = useState<number | null>(null)
   /** "Filters cleared to show X" after a reveal had to clear the search or "Changed only". */
   const [note, setNote] = useState<string | null>(null)
   /** Bumped per select/reveal so doing it again for the same row still re-renders (and scrolls). */
@@ -63,10 +80,22 @@ export function ElementTable({
   const nodeName = useMemo(() => new Map(topology.nodes.map((n) => [n.id, n.name])), [topology])
 
   const overrides = useMemo(() => editing?.overrides ?? [], [editing?.overrides])
-  const counts = useMemo(() => changeCounts(overrides), [overrides])
+  const additions = editing?.additions ?? NO_ADDITIONS
+  const onAdditions = editing?.onAdditionsChange
+  const addedIds = useMemo(() => new Set(additions.map((a) => a.id)), [additions])
+  /** change counts per tab: changed cells plus added elements (each counts once) */
+  const counts = useMemo(() => {
+    const c = changeCounts(overrides)
+    const a = additionCounts(additions)
+    for (const k of ['node', 'branch', 'appliance', 'source'] as const) c[k] += a[k]
+    c.total += additions.length
+    return c
+  }, [overrides, additions])
   const cells = useMemo(() => changedCells(overrides), [overrides])
-  const changedEls = useMemo(() => changedElements(overrides), [overrides])
+  const changedEls = useMemo(() => new Set([...changedElements(overrides), ...addedElements(additions)]), [overrides, additions])
   const onOverrides = editing?.onChange
+  const addSpecs = useMemo(() => (onAdditions ? (editing?.addable ?? []).filter((s) => s.kind === tab) : []), [editing?.addable, onAdditions, tab])
+  const toDelete = useMemo(() => (deleting === null ? [] : deletionSet(additions, deleting)), [additions, deleting])
   const edCols = useMemo<EditableColumn[]>(
     () => (editing ? editableColumns(editing.fields, tabComponents(topology, tab)) : []),
     [editing, topology, tab],
@@ -148,6 +177,11 @@ export function ElementTable({
         cell: (r) => (
           <span className="inline-flex items-center gap-2">
             <span className="font-medium">{r.name}</span>
+            {addedIds.has(r.id) && (
+              <Badge tone="accent" className="px-1.5 py-0 text-[10px]" title="Added by this case (not in the network file)">
+                <span data-testid="new-badge">New</span>
+              </Badge>
+            )}
             {onBackToDiagram && r.id === selectedId && (
               <button
                 type="button"
@@ -187,6 +221,38 @@ export function ElementTable({
         cell: (r) => {
           const fields = col.fields[r.component]
           if (!fields?.length || !onOverrides) return <span className="text-fg-muted">—</span>
+          if (addedIds.has(r.id)) {
+            // added element: edits change its own attrs (no overrides, nothing to revert to)
+            if (!onAdditions) return <span className="text-fg-muted">—</span>
+            const label = `${col.label} of ${r.name}`
+            if (col.kind === 'bool')
+              return (
+                <BoolCell
+                  checked={fields.every((f) => (r.params[f.field] ?? 1) !== 0)}
+                  fileChecked={fields.every((f) => (r.params[f.field] ?? 1) !== 0)}
+                  changed={false}
+                  label={label}
+                  onRevert={() => {}}
+                  onChange={(v) => {
+                    let next = additions
+                    for (const f of fields) next = setAdditionAttr(next, r.id, f.field, v ? 1 : 0)
+                    onAdditions(next)
+                  }}
+                />
+              )
+            const f = fields[0]
+            return (
+              <NumberCell
+                field={f}
+                value={r.params[f.field]}
+                file={r.params[f.field]}
+                changed={false}
+                label={label}
+                onRevert={() => {}}
+                onCommit={(v) => onAdditions(setAdditionAttr(additions, r.id, f.field, v))}
+              />
+            )
+          }
           const changed = isChanged(r)
           const label = `${col.label} of ${r.name}`
           const revert = () => onOverrides(revertColumn(overrides, r.component, r.id, col.id))
@@ -224,8 +290,30 @@ export function ElementTable({
         },
       })
     }
+    if (onAdditions && rows.some((r) => addedIds.has(r.id)))
+      cols.push({
+        key: 'actions',
+        header: '',
+        align: 'right',
+        width: 48,
+        cell: (r) =>
+          addedIds.has(r.id) ? (
+            <button
+              type="button"
+              aria-label={`Delete ${r.name}`}
+              title={`Delete ${r.name}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                setDeleting(r.id)
+              }}
+              className="inline-flex size-6 items-center justify-center rounded text-fg-muted hover:bg-bad-soft hover:text-bad focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              <Trash2 size={13} />
+            </button>
+          ) : null,
+      })
     return { rows, cols }
-  }, [tab, topology, nodeName, edCols, cells, overrides, onOverrides, onBackToDiagram, selectedId])
+  }, [tab, topology, nodeName, edCols, cells, overrides, onOverrides, onBackToDiagram, selectedId, addedIds, additions, onAdditions])
 
   const filtered = useMemo(() => {
     let out = rows
@@ -256,12 +344,17 @@ export function ElementTable({
           ]}
         />
         <div className="mb-1 flex flex-wrap items-center gap-3">
+          {addSpecs.length > 0 && ADD_LABEL[tab] && (
+            <Button size="sm" variant="primary" icon={<Plus size={13} />} onClick={() => setAdding(true)}>
+              {ADD_LABEL[tab]}
+            </Button>
+          )}
           {editing && (
             <>
               <span
                 data-testid="override-count"
                 className={counts.total ? 'text-xs font-medium text-warn' : 'text-xs text-fg-muted'}
-                title={counts.total ? `${plural(counts[tab])} in this tab` : 'Edit a cell to override the network file value for this case'}
+                title={counts.total ? `${plural(counts[tab])} in this tab` : 'Edit a cell to override the network file value for this case, or add new elements'}
               >
                 {plural(counts.total)}
               </span>
@@ -277,7 +370,9 @@ export function ElementTable({
                 size="sm"
                 icon={<RotateCcw size={13} />}
                 disabled={counts.total === 0}
-                onClick={() => (counts.total > REVERT_CONFIRM_THRESHOLD ? setConfirmRevert(true) : editing.onChange([]))}
+                onClick={() =>
+                  counts.total > REVERT_CONFIRM_THRESHOLD || additions.length > 0 ? setConfirmRevert(true) : (editing.onRevertAll ?? (() => editing.onChange([])))()
+                }
               >
                 Revert all
               </Button>
@@ -326,15 +421,61 @@ export function ElementTable({
         <ConfirmDialog
           open={confirmRevert}
           title="Revert all changes?"
-          message={`This removes all ${counts.total} parameter changes and restores the network file values.`}
+          message={
+            additions.length > 0
+              ? `This removes all ${counts.total} changes, including ${additions.length} new element${additions.length === 1 ? '' : 's'}, and restores the network file.`
+              : `This removes all ${counts.total} parameter changes and restores the network file values.`
+          }
           confirmLabel="Revert all"
           danger
           onCancel={() => setConfirmRevert(false)}
           onConfirm={() => {
             setConfirmRevert(false)
-            editing.onChange([])
+            if (editing.onRevertAll) editing.onRevertAll()
+            else editing.onChange([])
           }}
         />
+      )}
+      {editing && onAdditions && (
+        <>
+          <AddElementDialog
+            open={adding}
+            onClose={() => setAdding(false)}
+            specs={addSpecs}
+            topology={topology}
+            additions={additions}
+            onSave={(a) => {
+              setAdding(false)
+              onAdditions([...additions, a])
+            }}
+          />
+          <ConfirmDialog
+            open={toDelete.length > 0}
+            title={`Delete ${toDelete[0]?.name ?? ''}?`}
+            message={
+              toDelete.length > 1 ? (
+                <>
+                  <p>Deleting this node also deletes the new elements connected to it:</p>
+                  <ul data-testid="delete-dependents" className="mt-1.5 list-disc pl-5">
+                    {toDelete.slice(1).map((a) => (
+                      <li key={a.id}>{a.name}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                'The new element is removed from this case.'
+              )
+            }
+            confirmLabel={toDelete.length > 1 ? `Delete ${toDelete.length} elements` : 'Delete'}
+            danger
+            onCancel={() => setDeleting(null)}
+            onConfirm={() => {
+              const gone = new Set(toDelete.map((a) => a.id))
+              setDeleting(null)
+              onAdditions(additions.filter((a) => !gone.has(a.id)))
+            }}
+          />
+        </>
       )}
     </div>
   )

@@ -51,8 +51,8 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 | T28 | Expanded network view (overlay + true full screen), wheel zoom while expanded [sonnet] | done | T27 | frontend/ | make check && CI=1 make e2e |
 | T29 | License under Apache-2.0: LICENSE, NOTICE, package metadata, README section [haiku] | done | – | LICENSE, NOTICE, backend/pyproject.toml, frontend/package.json(+lock), README.md | make check |
 | T30 | Voltage colours from run limits: 5-stop ramp blue–teal–green(1.0)–yellow–red over u_min/u_max; remove per-browser scale override [sonnet] | done | – | frontend/, project.md | make check && CI=1 make e2e |
-| T31 | Add equipment, phase 1: case `network_additions` (node, line, link, sym_load, sym_gen, shunt) + Add/Delete in the element table [opus] | in_progress | – | backend/, frontend/, docs/api-contract.md, project.md | make check && CI=1 make e2e |
-| T32 | Add equipment, phase 2: add on the diagram (edit mode: place node, draw line/link between nodes, attach appliance to node), stored diagram positions [opus] | pending | T31 | frontend/ (+ addition position field) | make check && CI=1 make e2e |
+| T31 | Add equipment, phase 1: case `network_additions` (node, line, link, sym_load, sym_gen, shunt) + Add/Delete in the element table [opus] | done | – | backend/, frontend/, docs/api-contract.md, project.md | make check && CI=1 make e2e |
+| T32 | Add equipment, phase 2: add on the diagram (edit mode: place node, draw line/link between nodes, attach appliance to node), stored diagram positions [opus] | in_progress | T31 | frontend/ (+ addition position field) | make check && CI=1 make e2e |
 
 ## Log
 - 2026-10-26: profile scale factor shipped (d1d031c). T6 approved by user; sub-agent started.
@@ -142,3 +142,5 @@ Goal: end-to-end, interactive web app: define case → run time-series PGM power
 - T30 approved by user (fixed 1.0 pu green, flat blue/red beyond limits); sonnet sub-agent started.
 - T30 done: 5-stop voltage ramp from run limits, override removed. make check (69 pytest, 88 vitest) + CI=1 make e2e (28/28) verified by orchestrator; screenshots reviewed. Committed, not pushed.
 - T31/T32 (add equipment: table, then diagram) requested by user with a standing go-ahead for both phases; T31 opus sub-agent started.
+- T31 done: addable registry + additions apply/check, Add/Delete in element table, NetworkTopology.max_id. make check (88 pytest, 100 vitest) + CI=1 make e2e (29/29) verified by orchestrator; screenshots reviewed. Deferred issues #7 (transformers/sources/asym), #8 (delete file elements) filed. Committed, not pushed.
+- T32 brief written; opus sub-agent started.

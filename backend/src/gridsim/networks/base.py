@@ -195,6 +195,7 @@ def build_topology(
         appliances=appliances,
         sources=sources,
         counts={str(k): int(len(v)) for k, v in data.items()},
+        max_id=max((int(v["id"].max()) for v in data.values() if len(v)), default=-1),
     )
 
 

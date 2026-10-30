@@ -80,6 +80,32 @@
         }
       }
     },
+    "/api/networks/addable-fields": {
+      "get": {
+        "tags": [
+          "networks"
+        ],
+        "summary": "Get Addable Fields",
+        "description": "The components a case may add (`network_additions`), with their form fields.",
+        "operationId": "get_addable_fields",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AddableComponentSpec"
+                  },
+                  "type": "array",
+                  "title": "Response Get Addable Fields"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/networks/upload": {
       "post": {
         "tags": [
@@ -1133,6 +1159,143 @@
   },
   "components": {
     "schemas": {
+      "AddableComponentSpec": {
+        "properties": {
+          "component": {
+            "type": "string",
+            "enum": [
+              "node",
+              "line",
+              "link",
+              "sym_load",
+              "sym_gen",
+              "shunt"
+            ],
+            "title": "Component"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "node",
+              "branch",
+              "appliance"
+            ],
+            "title": "Kind",
+            "description": "Element table tab"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/AddableField"
+            },
+            "type": "array",
+            "title": "Fields"
+          },
+          "fixed": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Fixed",
+            "description": "PGM input attributes filled automatically (attrs may still set them)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "component",
+          "label",
+          "kind",
+          "fields"
+        ],
+        "title": "AddableComponentSpec",
+        "description": "One component that a case may add on top of the network file."
+      },
+      "AddableField": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit",
+            "description": "Display unit",
+            "default": ""
+          },
+          "scale": {
+            "type": "number",
+            "title": "Scale",
+            "description": "display value = SI value * scale",
+            "default": 1.0
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "float",
+              "int",
+              "bool",
+              "node"
+            ],
+            "title": "Kind",
+            "default": "float"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "default": true
+          },
+          "default": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default",
+            "description": "Default SI value (prefilled by the form)"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min",
+            "description": "Minimum SI value (inclusive)"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max",
+            "description": "Maximum SI value (inclusive)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "label"
+        ],
+        "title": "AddableField",
+        "description": "A field of the \"add element\" form (networks/addable.py). `kind: node` is a node reference."
+      },
       "Body_upload_network": {
         "properties": {
           "file": {
@@ -1313,6 +1476,14 @@
             "type": "array",
             "title": "Network Overrides",
             "description": "Edits on top of the unchanged network file"
+          },
+          "network_additions": {
+            "items": {
+              "$ref": "#/components/schemas/NetworkAddition"
+            },
+            "type": "array",
+            "title": "Network Additions",
+            "description": "New elements on top of the unchanged network file"
           },
           "created_at": {
             "anyOf": [
@@ -1746,6 +1917,59 @@
         "type": "object",
         "title": "Limits"
       },
+      "NetworkAddition": {
+        "properties": {
+          "component": {
+            "type": "string",
+            "enum": [
+              "node",
+              "line",
+              "link",
+              "sym_load",
+              "sym_gen",
+              "shunt"
+            ],
+            "title": "Component"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "PGM id, unique across all components of the network"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "attrs": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Attrs",
+            "description": "PGM input attributes in SI units (node refs as ids, booleans as 0/1)"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Position"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Diagram placement (optional)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "component",
+          "id",
+          "name"
+        ],
+        "title": "NetworkAddition",
+        "description": "A new element added by a case on top of the unchanged network file."
+      },
       "NetworkItem": {
         "properties": {
           "source": {
@@ -1880,6 +2104,12 @@
             },
             "type": "object",
             "title": "Counts"
+          },
+          "max_id": {
+            "type": "integer",
+            "title": "Max Id",
+            "description": "Largest PGM id over all components (new elements get ids above it)",
+            "default": -1
           }
         },
         "type": "object",
@@ -1974,6 +2204,24 @@
           "t_u_max"
         ],
         "title": "NodeExtremes"
+      },
+      "Position": {
+        "properties": {
+          "x": {
+            "type": "number",
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "title": "Y"
+          }
+        },
+        "type": "object",
+        "required": [
+          "x",
+          "y"
+        ],
+        "title": "Position"
       },
       "ProfileAssignment": {
         "properties": {

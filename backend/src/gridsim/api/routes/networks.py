@@ -1,7 +1,8 @@
 from fastapi import APIRouter, File, UploadFile
 
-from gridsim.models import EditableField, NetworkItem, NetworkTopology
+from gridsim.models import AddableComponentSpec, EditableField, NetworkItem, NetworkTopology
 from gridsim.networks import NETWORK_SOURCES, load_network
+from gridsim.networks.addable import ADDABLE_COMPONENTS
 from gridsim.networks.editable import EDITABLE_FIELDS
 from gridsim.networks.upload import UploadNetworkSource
 
@@ -17,6 +18,12 @@ def list_networks() -> list[NetworkItem]:
 def get_editable_fields() -> dict[str, list[EditableField]]:
     """Per PGM component, the input fields a case may override (`network_overrides`)."""
     return EDITABLE_FIELDS
+
+
+@router.get("/networks/addable-fields", response_model=list[AddableComponentSpec])
+def get_addable_fields() -> list[AddableComponentSpec]:
+    """The components a case may add (`network_additions`), with their form fields."""
+    return ADDABLE_COMPONENTS
 
 
 @router.post("/networks/upload", response_model=NetworkItem)

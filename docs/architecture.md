@@ -40,6 +40,7 @@ frontend/ (React + Vite + TS)                     backend/ (FastAPI + PGM)
 | Profile generator   | `backend/src/gridsim/profiles/`      | (form generated from JSON schema)|
 | Study type          | `backend/src/gridsim/studies/`       | —                               |
 | Result view         | (optional new results endpoint)      | `frontend/src/results/views/`   |
+| Addable equipment   | `backend/src/gridsim/networks/addable.py` | (add form generated from the field list) |
 
 Each extension is a self-contained module that registers itself in a registry.
 Adding a feature should mean adding a file plus a test, not editing core code.
@@ -65,6 +66,11 @@ JSON files). A future `lakehouse` source will implement the same interface.
   network file. The editable fields per component are a registry in `networks/editable.py`
   (`GET /api/networks/editable-fields`); `networks/overrides.py` validates them and writes them into a
   copy of the input arrays before `build_update`, so profiles scale the overridden base values.
+- **Network additions** (`case.network_additions`) add new elements (node, line, link, sym_load, sym_gen, shunt) per
+  case. The addable components and their form fields are a registry in `networks/addable.py`
+  (`GET /api/networks/addable-fields`); `networks/additions.py` validates them and appends them to copies of the input
+  arrays **before** the overrides, so overrides, profile targets and results treat them like file elements. The
+  frontend mirrors this in `components/network/additions.ts` (`withAdditions`, id allocation, delete-with-dependents).
 - The engine runs `calculate_power_flow(update_data=batch,
   continue_on_batch_error=True)` in chunks, so it can report progress. Failed
   (non-converged) timesteps are recorded rather than aborting the run.
