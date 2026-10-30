@@ -16,10 +16,12 @@ export interface ChartTheme {
   warn: string
   bad: string
   series: string[]
-  /** Voltage colour scale (lib/voltageScale): under the band (blue), within it (neutral), over it (red). */
-  voltUnder: string
-  voltMid: string
-  voltOver: string
+  /** Voltage colour scale (lib/voltageScale): u_min blue, teal, 1.0 pu green, yellow, u_max red. */
+  voltLow: string
+  voltLowMid: string
+  voltNominal: string
+  voltHighMid: string
+  voltHigh: string
 }
 
 const FALLBACK: ChartTheme = {
@@ -37,9 +39,11 @@ const FALLBACK: ChartTheme = {
   warn: '#a86a00',
   bad: '#c43030',
   series: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'],
-  voltUnder: '#2a78d6',
-  voltMid: '#d6d5cf',
-  voltOver: '#d03b3b',
+  voltLow: '#2a78d6',
+  voltLowMid: '#159c9c',
+  voltNominal: '#2e9e48',
+  voltHighMid: '#e0b000',
+  voltHigh: '#d03b3b',
 }
 
 function read(): ChartTheme {
@@ -61,9 +65,11 @@ function read(): ChartTheme {
     warn: v('--c-warn', FALLBACK.warn),
     bad: v('--c-bad', FALLBACK.bad),
     series: FALLBACK.series.map((fb, i) => v(`--c-series-${i + 1}`, fb)),
-    voltUnder: v('--c-volt-under', FALLBACK.voltUnder),
-    voltMid: v('--c-volt-mid', FALLBACK.voltMid),
-    voltOver: v('--c-volt-over', FALLBACK.voltOver),
+    voltLow: v('--c-volt-low', FALLBACK.voltLow),
+    voltLowMid: v('--c-volt-low-mid', FALLBACK.voltLowMid),
+    voltNominal: v('--c-volt-nominal', FALLBACK.voltNominal),
+    voltHighMid: v('--c-volt-high-mid', FALLBACK.voltHighMid),
+    voltHigh: v('--c-volt-high', FALLBACK.voltHigh),
   }
 }
 

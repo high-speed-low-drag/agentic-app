@@ -16,11 +16,11 @@ interface NodeStyle {
   borderStyle: string
   fontStyle: string
   color: string
-  mid: string
+  nominal: string
   muted: string
 }
 
-/** Computed Cytoscape style of a bus node, plus the neutral and muted tokens as `rgb(...)`. */
+/** Computed Cytoscape style of a bus node, plus the nominal-green and muted tokens as `rgb(...)`. */
 async function nodeStyle(page: Page, id: number): Promise<NodeStyle> {
   await page.waitForFunction((id) => !!(window as W).__gridsimCy?.getElementById(`n${id}`).nonempty(), id)
   return page.evaluate((id) => {
@@ -40,7 +40,7 @@ async function nodeStyle(page: Page, id: number): Promise<NodeStyle> {
       borderStyle: n.style('border-style'),
       fontStyle: n.style('font-style'),
       color: n.style('color'),
-      mid: token('--c-volt-mid'),
+      nominal: token('--c-volt-nominal'),
       muted: token('--c-fg-muted'),
     }
   }, id)
@@ -73,9 +73,8 @@ async function shot(page: Page, name: string, focus: number) {
   await page.emulateMedia({ colorScheme: 'light' })
 }
 
-test('within-band (neutral) and not-energised nodes are drawn differently', async ({ page }) => {
+test('within-limits (ramp-coloured) and not-energised nodes are drawn differently', async ({ page }) => {
   await page.goto('/')
-  await page.evaluate(() => localStorage.removeItem('gridsim.voltageScale.v1'))
   const topo = (await (await page.request.get('/api/networks/sample/vision_mv')).json()) as NetworkTopology
   const base = energisedNodes(topo)
   // a radial in-service branch whose removal islands the fewest nodes, preferring a transformer
@@ -123,7 +122,7 @@ test('within-band (neutral) and not-energised nodes are drawn differently', asyn
   await expect(page.getByTestId('snapshot-step')).toBeVisible()
   await expect(page.getByTestId('voltage-legend')).toBeVisible()
 
-  // a within-band energised node at the shown timestep (default band 0.95–1.05 pu)
+  // an energised node within the limits at the shown timestep, close to 1.0 pu (so near the green stop)
   const step = Number(/step ([\d,]+)/.exec((await page.getByTestId('snapshot-step').textContent())!)![1].replace(/,/g, '')) - 1
   const snap = (await (await page.request.get(`/api/runs/${runId}/snapshot?t=${step}`)).json()) as { nodes: Record<string, number | null> }
   const within = Number(
@@ -134,8 +133,14 @@ test('within-band (neutral) and not-energised nodes are drawn differently', asyn
 
   // snapshot: the islanded node keeps the same style over the (null) voltage colour
   const isl = await expectIslanded(page, node)
-  await expect.poll(async () => norm((await nodeStyle(page, within)).bg)).toBe(norm(isl.mid))
+  await expect.poll(async () => (await nodeStyle(page, within)).bgOpacity).toBe(1)
   const neu = await nodeStyle(page, within)
+  // filled with its ramp colour: green-dominant and close to the nominal stop
+  const rgb = (c: string) => c.match(/\d+(\.\d+)?/g)!.slice(0, 3).map(Number)
+  const [nr, ng, nb] = rgb(neu.bg)
+  const [gr, gg, gb] = rgb(neu.nominal)
+  expect(ng).toBeGreaterThan(Math.max(nr, nb))
+  expect(Math.abs(nr - gr) + Math.abs(ng - gg) + Math.abs(nb - gb)).toBeLessThan(120)
   expect(neu.bgOpacity).toBe(1)
   expect(neu.borderStyle).toBe('solid')
   expect(neu.fontStyle).toBe('normal')
@@ -144,6 +149,6 @@ test('within-band (neutral) and not-energised nodes are drawn differently', asyn
   expect(neu.bgOpacity).not.toBe(isl.bgOpacity)
   expect(neu.borderStyle).not.toBe(isl.borderStyle)
   await expect(views.getByTestId('status-legend')).toContainText('Not energised')
-  expect(norm(await page.getByTestId('voltage-legend-band').evaluate((e) => getComputedStyle(e).backgroundColor))).toBe(norm(isl.mid))
+  await expect(views.getByTestId('voltage-legend')).toBeVisible()
   await shot(page, 'snapshot', node)
 })

@@ -1,19 +1,9 @@
-import { act, renderHook } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import type { ChartTheme } from '../components/charts/theme'
-import {
-  DEFAULT_VOLTAGE_SCALE,
-  loadScale,
-  matchLimits,
-  resetVoltageScaleStore,
-  saveScale,
-  useVoltageScale,
-  VOLTAGE_SCALE_KEY,
-  validateScale,
-  voltageColor,
-} from './voltageScale'
+import { mix } from '../components/charts/theme'
+import { voltageColor, voltageStops } from './voltageScale'
 
-const base: Omit<ChartTheme, 'dark' | 'voltUnder' | 'voltMid' | 'voltOver' | 'axis'> = {
+const base: Omit<ChartTheme, 'dark' | 'voltLow' | 'voltLowMid' | 'voltNominal' | 'voltHighMid' | 'voltHigh' | 'axis'> = {
   bg: '#f6f6f4',
   surface: '#ffffff',
   fg: '#111110',
@@ -30,120 +20,84 @@ const base: Omit<ChartTheme, 'dark' | 'voltUnder' | 'voltMid' | 'voltOver' | 'ax
 
 // Token values from index.css, light and dark.
 const themes: Record<string, ChartTheme> = {
-  light: { ...base, dark: false, axis: '#c3c2b7', voltUnder: '#2a78d6', voltMid: '#d6d5cf', voltOver: '#d03b3b' },
-  dark: { ...base, dark: true, axis: '#45443f', voltUnder: '#3987e5', voltMid: '#5a5954', voltOver: '#e66767' },
+  light: {
+    ...base,
+    dark: false,
+    axis: '#c3c2b7',
+    voltLow: '#2a78d6',
+    voltLowMid: '#159c9c',
+    voltNominal: '#2e9e48',
+    voltHighMid: '#e0b000',
+    voltHigh: '#d03b3b',
+  },
+  dark: {
+    ...base,
+    dark: true,
+    axis: '#45443f',
+    voltLow: '#3987e5',
+    voltLowMid: '#2bbdbd',
+    voltNominal: '#3fb950',
+    voltHighMid: '#f0c53c',
+    voltHigh: '#e66767',
+  },
 }
 
-const rgb = (s: string) => {
-  const n = parseInt(s.slice(1), 16)
-  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }
-}
-/** How blue / red a colour reads: that channel minus the other two's mean. */
-const blueness = (s: string) => {
-  const c = rgb(s)
-  return c.b - (c.r + c.g) / 2
-}
-const redness = (s: string) => {
-  const c = rgb(s)
-  return c.r - (c.g + c.b) / 2
-}
+const ch = (c: string) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16))
+/** Same colour within one channel step (float rounding at the half-way point). */
+const near = (a: string, b: string) => ch(a).every((x, i) => Math.abs(x - ch(b)[i]) <= 1)
 
-const S = DEFAULT_VOLTAGE_SCALE
+const L = { u_min_pu: 0.9, u_max_pu: 1.1 }
 
-describe.each(Object.entries(themes))('voltageColor (%s)', (_name, theme) => {
-  it('is exactly neutral within the band', () => {
-    expect(voltageColor(1.0, S, theme)).toBe(theme.voltMid)
-    expect(voltageColor(1.04, S, theme)).toBe(theme.voltMid)
-    expect(voltageColor(0.95, S, theme)).toBe(theme.voltMid)
-    expect(voltageColor(1.05, S, theme)).toBe(theme.voltMid)
+describe.each(Object.entries(themes))('voltageColor (%s)', (_name, t) => {
+  it('hits the five stop colours exactly', () => {
+    expect(voltageColor(0.9, L, t)).toBe(t.voltLow)
+    expect(voltageColor(0.95, L, t)).toBe(t.voltLowMid)
+    expect(voltageColor(1.0, L, t)).toBe(t.voltNominal)
+    expect(voltageColor(1.05, L, t)).toBe(t.voltHighMid)
+    expect(voltageColor(1.1, L, t)).toBe(t.voltHigh)
   })
 
-  it('is partial blue between full-under and the band', () => {
-    const c = voltageColor(0.93, S, theme)
-    expect(blueness(c)).toBeGreaterThan(blueness(theme.voltMid))
-    expect(blueness(c)).toBeLessThan(blueness(theme.voltUnder))
-    if (theme.dark) expect(rgb(c).b).toBeGreaterThan(rgb(theme.voltMid).b)
+  it('interpolates between stops', () => {
+    expect(near(voltageColor(0.925, L, t), mix(t.voltLow, t.voltLowMid, 0.5))).toBe(true)
+    expect(near(voltageColor(0.975, L, t), mix(t.voltLowMid, t.voltNominal, 0.5))).toBe(true)
+    expect(near(voltageColor(1.025, L, t), mix(t.voltNominal, t.voltHighMid, 0.5))).toBe(true)
+    expect(near(voltageColor(1.075, L, t), mix(t.voltHighMid, t.voltHigh, 0.5))).toBe(true)
   })
 
-  it('shows a visible tint just outside the band', () => {
-    const c = voltageColor(0.9499, S, theme)
-    const f = (blueness(c) - blueness(theme.voltMid)) / (blueness(theme.voltUnder) - blueness(theme.voltMid))
-    expect(f).toBeGreaterThan(0.2)
-    expect(f).toBeLessThan(0.35)
+  it('is flat beyond the limits', () => {
+    expect(voltageColor(0.5, L, t)).toBe(t.voltLow)
+    expect(voltageColor(0.89, L, t)).toBe(t.voltLow)
+    expect(voltageColor(1.11, L, t)).toBe(t.voltHigh)
+    expect(voltageColor(2, L, t)).toBe(t.voltHigh)
   })
 
-  it('is full blue beyond full-under, partial / full red above the band', () => {
-    expect(voltageColor(0.88, S, theme)).toBe(theme.voltUnder)
-    expect(voltageColor(0.9, S, theme)).toBe(theme.voltUnder)
-    const p = voltageColor(1.07, S, theme)
-    expect(redness(p)).toBeGreaterThan(redness(theme.voltMid))
-    expect(redness(p)).toBeLessThan(redness(theme.voltOver))
-    expect(voltageColor(1.12, S, theme)).toBe(theme.voltOver)
+  it('moves the midpoints with asymmetric limits', () => {
+    const a = { u_min_pu: 0.94, u_max_pu: 1.1 }
+    expect(voltageStops(a, t).map((s) => s.u)).toEqual([0.94, 0.97, 1, 1.05, 1.1])
+    expect(voltageColor(0.97, a, t)).toBe(t.voltLowMid)
+    expect(voltageColor(1.05, a, t)).toBe(t.voltHighMid)
+    expect(near(voltageColor(0.95, a, t), mix(t.voltLow, t.voltLowMid, (0.95 - 0.94) / 0.03))).toBe(true)
+  })
+
+  it('does not throw or produce NaN with degenerate limits', () => {
+    for (const lim of [
+      { u_min_pu: 1.02, u_max_pu: 1.1 },
+      { u_min_pu: 0.9, u_max_pu: 0.98 },
+      { u_min_pu: 1, u_max_pu: 1 },
+      { u_min_pu: 1.1, u_max_pu: 0.9 },
+    ]) {
+      const stops = voltageStops(lim, t)
+      expect(stops.every((s) => Number.isFinite(s.u))).toBe(true)
+      for (const u of [0.8, 0.95, 1, 1.05, 1.2]) expect(voltageColor(u, lim, t)).toMatch(/^#[0-9a-f]{6}$/)
+    }
+    // green moves to the midpoint of the limits
+    expect(voltageStops({ u_min_pu: 1.02, u_max_pu: 1.1 }, t)[2].u).toBeCloseTo(1.06)
+    expect(voltageStops({ u_min_pu: 0.9, u_max_pu: 0.98 }, t)[2].u).toBeCloseTo(0.94)
   })
 
   it('uses the axis colour for missing values', () => {
-    expect(voltageColor(null, S, theme)).toBe(theme.axis)
-    expect(voltageColor(undefined, S, theme)).toBe(theme.axis)
-    expect(voltageColor(NaN, S, theme)).toBe(theme.axis)
-  })
-
-  it('follows a custom band', () => {
-    expect(voltageColor(1.09, [0.9, 0.95, 1.1, 1.15], theme)).toBe(theme.voltMid)
-    expect(voltageColor(1.09, S, theme)).not.toBe(theme.voltMid)
-  })
-})
-
-describe('validateScale', () => {
-  it('accepts the defaults', () => expect(validateScale(DEFAULT_VOLTAGE_SCALE)).toBeNull())
-  it('rejects non-ascending values', () => {
-    expect(validateScale([0.9, 0.95, 0.95, 1.1])).toMatch(/ascending/)
-    expect(validateScale([0.9, 1.0, 0.98, 1.1])).toMatch(/ascending/)
-  })
-  it('rejects out-of-range and non-finite values', () => {
-    expect(validateScale([0.4, 0.95, 1.05, 1.1])).toMatch(/between/)
-    expect(validateScale([0.9, 0.95, 1.05, 1.6])).toMatch(/between/)
-    expect(validateScale([0.9, NaN, 1.05, 1.1])).not.toBeNull()
-    expect(validateScale([0.9, 0.95, 1.05])).not.toBeNull()
-  })
-})
-
-describe('matchLimits', () => {
-  it('sets the band and keeps the outer gaps', () => {
-    expect(matchLimits([0.9, 0.95, 1.05, 1.1], 0.97, 1.03)).toEqual([0.92, 0.97, 1.03, 1.08])
-  })
-})
-
-describe('persistence', () => {
-  beforeEach(() => {
-    localStorage.clear()
-    resetVoltageScaleStore()
-  })
-  afterEach(() => localStorage.clear())
-
-  it('falls back to the defaults on missing, garbage or invalid stored values', () => {
-    expect(loadScale(localStorage)).toEqual(DEFAULT_VOLTAGE_SCALE)
-    for (const raw of ['{not json', '"x"', '{"a":1}', '[1,2,3]', '[1.1,1.0,0.9,0.8]', '[0.9,0.95,1.05,"1.1"]']) {
-      localStorage.setItem(VOLTAGE_SCALE_KEY, raw)
-      expect(loadScale(localStorage)).toEqual(DEFAULT_VOLTAGE_SCALE)
-    }
-    expect(loadScale({ getItem: () => { throw new Error('blocked') } })).toEqual(DEFAULT_VOLTAGE_SCALE)
-  })
-
-  it('round-trips a valid scale', () => {
-    saveScale([0.9, 0.95, 1.1, 1.15], localStorage)
-    expect(loadScale(localStorage)).toEqual([0.9, 0.95, 1.1, 1.15])
-  })
-
-  it('useVoltageScale applies and stores valid scales and ignores invalid ones', () => {
-    localStorage.setItem(VOLTAGE_SCALE_KEY, 'garbage')
-    const { result } = renderHook(() => useVoltageScale())
-    expect(result.current[0]).toEqual(DEFAULT_VOLTAGE_SCALE)
-    act(() => void result.current[1]([0.9, 0.95, 1.1, 1.15]))
-    expect(result.current[0]).toEqual([0.9, 0.95, 1.1, 1.15])
-    expect(JSON.parse(localStorage.getItem(VOLTAGE_SCALE_KEY)!)).toEqual([0.9, 0.95, 1.1, 1.15])
-    let ok = true
-    act(() => void (ok = result.current[1]([0.9, 1.2, 1.1, 1.15])))
-    expect(ok).toBe(false)
-    expect(result.current[0]).toEqual([0.9, 0.95, 1.1, 1.15])
+    expect(voltageColor(null, L, t)).toBe(t.axis)
+    expect(voltageColor(undefined, L, t)).toBe(t.axis)
+    expect(voltageColor(NaN, L, t)).toBe(t.axis)
   })
 })

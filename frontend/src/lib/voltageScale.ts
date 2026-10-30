@@ -1,120 +1,56 @@
 /**
- * User-defined four-point voltage colour scale `[fullUnder, bandLow, bandHigh, fullOver]` (pu):
- * a neutral band between `bandLow` and `bandHigh`, ramps to full blue at `fullUnder` and full red at
- * `fullOver`. Stored per browser in localStorage; applies to every run.
+ * Voltage colour scale for the network snapshot, defined by the run's frozen case limits:
+ * `u_min` blue - midpoint teal - 1.0 pu green - midpoint yellow - `u_max` red, piecewise-linear, flat beyond the limits.
  */
-import { useCallback, useSyncExternalStore } from 'react'
+import type { Limits } from '../api/schema'
 import type { ChartTheme } from '../components/charts/theme'
 import { mix } from '../components/charts/theme'
 
-export type VoltageScale = readonly [fullUnder: number, bandLow: number, bandHigh: number, fullOver: number]
-
-export const DEFAULT_VOLTAGE_SCALE: VoltageScale = [0.9, 0.95, 1.05, 1.1]
-export const SCALE_MIN_PU = 0.5
-export const SCALE_MAX_PU = 1.5
-/** Tint just outside the band, so crossing a band edge is visible. */
-export const EDGE_TINT = 0.28
-export const VOLTAGE_SCALE_KEY = 'gridsim.voltageScale.v1'
-
-/** Error message for an invalid scale, or null when it is valid. */
-export function validateScale(s: readonly unknown[] | null | undefined): string | null {
-  if (!Array.isArray(s) || s.length !== 4) return 'Enter four values.'
-  if (!s.every((v) => typeof v === 'number' && Number.isFinite(v))) return 'Enter four numbers.'
-  const v = s as number[]
-  if (v.some((x) => x < SCALE_MIN_PU || x > SCALE_MAX_PU)) return `Values must be between ${SCALE_MIN_PU} and ${SCALE_MAX_PU} pu.`
-  for (let i = 1; i < 4; i++) if (!(v[i] > v[i - 1])) return 'Values must be strictly ascending.'
-  return null
+export type VoltageLimits = Pick<Limits, 'u_min_pu' | 'u_max_pu'>
+export interface VoltageStop {
+  /** Voltage in pu. */
+  u: number
+  color: string
 }
 
-/** Node colour for voltage `u` (pu): neutral within the band, ramps outside it, axis colour when missing. */
-export function voltageColor(u: number | null | undefined, scale: VoltageScale, theme: ChartTheme): string {
+/** Removed per-browser override (see SNAP-10); cleared once so no stale value lingers. */
+const OBSOLETE_KEY = 'gridsim.voltageScale.v1'
+try {
+  if (typeof window !== 'undefined') window.localStorage.removeItem(OBSOLETE_KEY)
+} catch {
+  // storage blocked: nothing to clean up
+}
+
+/**
+ * The five stops (ascending pu). The green stop is 1.0 pu, clamped into the limits: when 1.0 is not strictly inside
+ * (u_min, u_max) it moves to the midpoint of the limits so the stops stay ordered.
+ */
+export function voltageStops(limits: VoltageLimits, theme: ChartTheme): VoltageStop[] {
+  const lo = limits.u_min_pu
+  const hi = limits.u_max_pu
+  const nominal = lo < 1 && 1 < hi ? 1 : (lo + hi) / 2
+  return [
+    { u: lo, color: theme.voltLow },
+    { u: (lo + nominal) / 2, color: theme.voltLowMid },
+    { u: nominal, color: theme.voltNominal },
+    { u: (nominal + hi) / 2, color: theme.voltHighMid },
+    { u: hi, color: theme.voltHigh },
+  ]
+}
+
+/** Node colour for voltage `u` (pu); the axis colour when missing. */
+export function voltageColor(u: number | null | undefined, limits: VoltageLimits, theme: ChartTheme): string {
   if (u === null || u === undefined || Number.isNaN(u)) return theme.axis
-  const [fullUnder, bandLow, bandHigh, fullOver] = scale
-  if (u >= bandLow && u <= bandHigh) return theme.voltMid
-  if (u < bandLow) {
-    if (u <= fullUnder) return theme.voltUnder
-    return mix(theme.voltMid, theme.voltUnder, EDGE_TINT + (1 - EDGE_TINT) * ((bandLow - u) / (bandLow - fullUnder)))
+  const stops = voltageStops(limits, theme)
+  const first = stops[0]
+  const last = stops[stops.length - 1]
+  if (!(Number.isFinite(first.u) && Number.isFinite(last.u))) return theme.axis
+  if (u <= first.u) return first.color
+  if (u >= last.u) return last.color
+  for (let i = 1; i < stops.length; i++) {
+    const a = stops[i - 1]
+    const b = stops[i]
+    if (u <= b.u) return b.u > a.u ? mix(a.color, b.color, (u - a.u) / (b.u - a.u)) : b.color
   }
-  if (u >= fullOver) return theme.voltOver
-  return mix(theme.voltMid, theme.voltOver, EDGE_TINT + (1 - EDGE_TINT) * ((u - bandHigh) / (fullOver - bandHigh)))
-}
-
-/** Set the band to the run's limits, keeping the current gaps to the outer values. */
-export function matchLimits(scale: VoltageScale, uMin: number, uMax: number): VoltageScale {
-  const [fu, lo, hi, fo] = scale
-  const r = (x: number) => Math.round(x * 1e4) / 1e4
-  return [r(uMin - (lo - fu)), r(uMin), r(uMax), r(uMax + (fo - hi))]
-}
-
-/** Read the stored scale; the defaults on anything missing, unreadable or invalid. */
-export function loadScale(storage: Pick<Storage, 'getItem'> | null | undefined = safeStorage()): VoltageScale {
-  try {
-    const raw = storage?.getItem(VOLTAGE_SCALE_KEY)
-    if (!raw) return DEFAULT_VOLTAGE_SCALE
-    const v: unknown = JSON.parse(raw)
-    return Array.isArray(v) && validateScale(v) === null ? (v as unknown as VoltageScale) : DEFAULT_VOLTAGE_SCALE
-  } catch {
-    return DEFAULT_VOLTAGE_SCALE
-  }
-}
-
-export function saveScale(scale: VoltageScale, storage: Pick<Storage, 'setItem'> | null | undefined = safeStorage()) {
-  try {
-    storage?.setItem(VOLTAGE_SCALE_KEY, JSON.stringify(scale))
-  } catch {
-    // storage blocked or full: the setting still applies for this page
-  }
-}
-
-function safeStorage(): Storage | null {
-  try {
-    return typeof window !== 'undefined' ? window.localStorage : null
-  } catch {
-    return null
-  }
-}
-
-// one shared store, so the legend, popover and diagram all update together
-let current: VoltageScale | null = null
-const listeners = new Set<() => void>()
-
-function get(): VoltageScale {
-  return (current ??= loadScale())
-}
-
-function subscribe(cb: () => void) {
-  listeners.add(cb)
-  const onStorage = (e: StorageEvent) => {
-    if (e.key !== VOLTAGE_SCALE_KEY) return
-    current = loadScale()
-    cb()
-  }
-  if (typeof window !== 'undefined') window.addEventListener('storage', onStorage)
-  return () => {
-    listeners.delete(cb)
-    if (typeof window !== 'undefined') window.removeEventListener('storage', onStorage)
-  }
-}
-
-/** Apply and store a scale; returns false (and changes nothing) when it is invalid. */
-export function setVoltageScale(scale: VoltageScale): boolean {
-  if (validateScale(scale) !== null) return false
-  const s = get()
-  if (s.every((x, i) => x === scale[i])) return true
-  current = [...scale] as unknown as VoltageScale
-  saveScale(current)
-  listeners.forEach((l) => l())
-  return true
-}
-
-/** The browser's voltage colour scale and a setter (invalid scales are ignored). */
-export function useVoltageScale(): [VoltageScale, (s: VoltageScale) => boolean] {
-  const scale = useSyncExternalStore(subscribe, get, () => DEFAULT_VOLTAGE_SCALE)
-  const set = useCallback((s: VoltageScale) => setVoltageScale(s), [])
-  return [scale, set]
-}
-
-/** Test hook: forget the in-memory value so the next read comes from storage. */
-export function resetVoltageScaleStore() {
-  current = null
+  return last.color
 }

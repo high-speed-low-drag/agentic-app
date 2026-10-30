@@ -78,8 +78,6 @@ export function ExpandableNetwork({
     if (!expanded) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.defaultPrevented || document.fullscreenElement) return
-      // the voltage-scale popover closes itself on Esc; leave the overlay for the next one
-      if (document.querySelector('[data-testid="voltage-scale-popover"]')) return
       collapse()
     }
     window.addEventListener('keydown', onKey)

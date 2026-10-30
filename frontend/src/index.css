@@ -43,10 +43,12 @@
   --c-series-6: #008300;
   --c-series-7: #6250d6;
   --c-series-8: #e34948;
-  /* voltage scale (under = blue, mid = neutral band, over = red); the node ring keeps mid visible */
-  --c-volt-under: #2a78d6;
-  --c-volt-mid: #d6d5cf;
-  --c-volt-over: #d03b3b;
+  /* voltage scale from the run's limits: blue (u_min) - teal - green (1.0 pu) - yellow - red (u_max); the node ring keeps it visible */
+  --c-volt-low: #2a78d6;
+  --c-volt-low-mid: #159c9c;
+  --c-volt-nominal: #2e9e48;
+  --c-volt-high-mid: #e0b000;
+  --c-volt-high: #d03b3b;
   /* day/night clock and slider: daylight (warm) and night (muted) */
   --c-daylight: #f2c35b;
   --c-night: #bdbcb4;
@@ -88,9 +90,11 @@
     --c-series-6: #008300;
     --c-series-7: #9085e9;
     --c-series-8: #e66767;
-    --c-volt-under: #3987e5;
-    --c-volt-mid: #5a5954;
-    --c-volt-over: #e66767;
+    --c-volt-low: #3987e5;
+    --c-volt-low-mid: #2bbdbd;
+    --c-volt-nominal: #3fb950;
+    --c-volt-high-mid: #f0c53c;
+    --c-volt-high: #e66767;
     --c-daylight: #b98220;
     --c-night: #3d3d39;
   }
@@ -131,9 +135,11 @@
   --c-series-6: #008300;
   --c-series-7: #9085e9;
   --c-series-8: #e66767;
-  --c-volt-under: #3987e5;
-  --c-volt-mid: #5a5954;
-  --c-volt-over: #e66767;
+  --c-volt-low: #3987e5;
+  --c-volt-low-mid: #2bbdbd;
+  --c-volt-nominal: #3fb950;
+  --c-volt-high-mid: #f0c53c;
+  --c-volt-high: #e66767;
   --c-daylight: #b98220;
   --c-night: #3d3d39;
 }

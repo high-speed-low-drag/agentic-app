@@ -24,7 +24,7 @@ import { fmtDateTime, fmtPct, fmtPu, toDate } from '../../lib/format'
 import { solarSource } from '../../lib/solar'
 import { toNaive } from '../../lib/time'
 import { useElementWidth } from '../../lib/useElementWidth'
-import { useVoltageScale, voltageColor } from '../../lib/voltageScale'
+import { voltageColor } from '../../lib/voltageScale'
 import { timestepTime } from '../timestamps'
 import type { ResultViewProps } from '../types'
 import { useRunContext } from '../useRunContext'
@@ -40,7 +40,6 @@ const CLOCK_COMPACT_PX = 560
 /** Network diagram coloured by the results at one timestep, with a time slider and playback. */
 export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
   const theme = useChartTheme()
-  const [vScale] = useVoltageScale()
   const ctx = useRunContext(runId)
   const n = summary.n_timesteps
   const [t, setT] = useState(() => {
@@ -85,14 +84,14 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
     const d = snap.data
     if (!d) return undefined
     return {
-      nodeColor: (id) => voltageColor(d.nodes[String(id)], vScale, theme),
+      nodeColor: (id) => voltageColor(d.nodes[String(id)], ctx.limits, theme),
       branchColor: (id) => loadingColor(d.branches[String(id)], theme),
       branchWidth: (id) => {
         const l = d.branches[String(id)]
         return l === null || l === undefined ? 1 : 1.5 + Math.min(1.5, l) * 3
       },
     }
-  }, [snap.data, theme, vScale])
+  }, [snap.data, theme, ctx.limits])
 
   // the run's own network: branches switched off by the frozen case's overrides are drawn dashed
   const overrides = ctx.case?.network_overrides

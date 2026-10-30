@@ -144,7 +144,6 @@ These are the only implementation constraints. Everything else is open to the bu
 | **Extremes** | Per-element statistics over the whole run: for nodes min, mean and max voltage and the times of the min and max; for branches max and mean loading and the time of the max. |
 | **Energised** | A node is energised when it is connected to an in-service source through in-service branches. Nodes cut off by switched-off branches or sources are **not energised** (islanded). Energisation is decided from the (effective) topology, not from result values. Not-energised nodes have zero voltage in the engine; they are excluded from voltage KPIs, extremes and violations. |
 | **In service / out of service** | Elements carry a status. A branch is in service only when both its ends are switched on. Out-of-service elements carry no flow. |
-| **Display settings vs study data** | *Study data* (case, limits, overrides, profiles) is stored with the case, frozen into each run and determines results. *Display settings* (currently the voltage colour scale of the network snapshot) are per-browser preferences that apply to every run and never change any result. |
 
 ---
 
@@ -1054,27 +1053,22 @@ Layout: a toolbar row; below it the diagram (about 540 px tall; appliances hidde
 
 #### 4.17.4 Colours on the snapshot
 
-- `SNAP-10` **Voltage colour scale** (nodes). A user-defined four-point scale `[full blue below, band from, band to,
-  full red above]` in pu, default `[0.90, 0.95, 1.05, 1.10]`:
-  - within the band (inclusive): exactly the neutral colour, a clearly **filled grey**;
-  - below the band: a blue that starts as a visible tint (28 % of the way from neutral to full blue) just outside
-    the band and reaches full blue at `full blue below` and lower;
-  - above the band: the same towards full red at `full red above`;
+- `SNAP-10` **Voltage colour scale** (nodes). Defined only by the run's frozen case limits `u min` and `u max` and
+  1.0 pu, as a five-stop ramp **blue - teal - green - yellow - red**:
+  - `u min` full blue; the midpoint of `u min` and 1.0 pu teal; 1.0 pu green; the midpoint of 1.0 pu and `u max`
+    yellow; `u max` full red;
+  - between stops the colour is interpolated linearly, each side on its own span, so asymmetric limits move the
+    midpoints;
+  - at or beyond a limit the colour is flat (full blue below `u min`, full red above `u max`);
+  - if 1.0 pu is not strictly between the limits, the green stop is placed at the midpoint of the limits instead;
   - no value: the neutral axis grey.
-  Design intent: **undervoltage blue, overvoltage red, within band neutral grey**; the neutral grey must be filled
-  so it is never mistaken for the hollow "not energised" style.
-- `SNAP-11` The legend shows `u`, a bar of three equal parts (blue ramp, neutral band titled `within band`, red ramp)
-  with ticks at the four values (2 decimals), the caption `within band`, and an `Edit scale` button.
-- `SNAP-12` `Edit scale` opens a popover `Voltage colour scale` with four inputs (pu, step 0.01, 0.5…1.5): `Full blue
-  below`, `Band from`, `Band to`, `Full red above`. Valid values apply immediately, also during playback. Invalid
-  values change nothing and show `<message> Not applied.` with one of: `Enter four values.`, `Enter four numbers.`,
-  `Values must be between 0.5 and 1.5 pu.`, `Values must be strictly ascending.` Buttons: `Match run limits` (band =
-  the run's `u min`/`u max`, outer points keep their distance from the band; tooltip `Band <u min>–<u max> pu from
-  the run's case limits`) and `Reset to defaults`. Note: `Saved in this browser; applies to every run.` Escape or a
-  click outside closes it.
-- `SNAP-13` The scale is a **display setting**: saved per browser, the same for every run, synchronised across open
-  tabs, falling back to the defaults if the saved value is missing or invalid, and it never changes results, KPIs or
-  violation limits.
+  Design intent: **undervoltage blue, nominal green, overvoltage red** with teal and yellow as early warnings; every
+  energised node is filled with its ramp colour, so it is never mistaken for the hollow "not energised" style.
+- `SNAP-11` The legend shows `u`, a continuous gradient bar of the five colours (five equal parts, so each tick
+  sits under its stop) with three ticks `u min`, `1.00`, `u max` (2 decimals) read from the run's limits, and the
+  tooltip `Limits from the run settings`. It is read-only.
+- `SNAP-12` The scale follows the run's frozen case limits and has no per-browser override or editor. It never
+  changes results, KPIs or violation limits.
 - `SNAP-14` **Loading colours** (branches): neutral grey at 0 %, shading to green at 60 %, to amber at 100 %, to red
   at 120 % and above; no value is neutral grey. Branch line width grows linearly with loading up to 150 % (thin when
   idle, about 3× as thick at 100 % and 4× at 150 % and above). Legend: a `loading` gradient with ticks `0%`, `60%`, `100%`,
@@ -1174,8 +1168,8 @@ Acceptance criteria:
   Generator, External grid and Capacitor.
 - Given Vision MV, when I switch off the in-service branch whose removal islands the fewest nodes, then the islanded
   nodes have a dashed ring, no fill, the × image and an italic muted label; the count of not-energised nodes is
-  shown in the legend; on the snapshot those nodes keep that style while a within-band energised node is filled
-  with the neutral voltage colour, solid ring, normal font and no image.
+  shown in the legend; on the snapshot those nodes keep that style while an energised node within the limits is filled
+  with its voltage colour, solid ring, normal font and no image.
 - Given an edited transformer tap position, then that transformer is drawn with the amber edited cue.
 - Given an out-of-service transformer, then its symbol is drawn in the off style and its `off` tag stays visible.
 
@@ -1244,8 +1238,6 @@ Acceptance criteria:
 - `NFR-S2` Writes are atomic: an interrupted save never leaves a half-written case or run status.
 - `NFR-S3` Deleting a case deletes its runs and results; deleting a run deletes its results. Uploaded networks and
   CSV files are kept.
-- `NFR-S4` Display settings (the voltage colour scale) are stored in the browser only. If browser storage is
-  unavailable or holds garbage, the defaults apply and nothing breaks.
 
 ### 5.3 Reproducibility
 
@@ -1290,7 +1282,7 @@ Acceptance criteria:
   should keep keyboard focus inside while open); tabs, toggles and switches expose their selected state to
   assistive technology.
 - `NFR-A2` Inputs have labels (table cells: `<label> of <name>`); icon buttons have accessible names and tooltips
-  (`Zoom in`, `Delete case`, `Revert … of …`, `Edit scale`).
+  (`Zoom in`, `Delete case`, `Revert … of …`).
 - `NFR-A3` The timestep slider remains a standard range control (keyboard arrows work).
 - `NFR-A4` Animations (row flash, smooth scrolling, diagram centring) are disabled when the user prefers reduced
   motion.
@@ -1324,7 +1316,6 @@ Described conceptually; the storage format is the builder's choice except for th
 | **Network file** (user-facing format) | A PGM JSON input file (PGM's serialization format, as in its validation data). Components used: nodes, lines, asymmetric lines, links, transformers, generic branches, three-winding transformers, symmetric/asymmetric loads and generators, shunts, sources, voltage regulators. Optional per-element `Name` fields are used for display. |
 | **Profile CSV** (user-facing format) | A delimited text file: the first column timestamps, other columns numeric multiplier series with header names. Any common delimiter. Values are multipliers (dimensionless), used as `m(t)`. |
 | **Case** | See 6.3. |
-| **Display settings** | Voltage colour scale, four pu values, per browser. |
 
 ### 6.2 Network information shown to the user
 

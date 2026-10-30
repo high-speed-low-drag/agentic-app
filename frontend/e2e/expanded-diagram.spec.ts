@@ -159,7 +159,7 @@ test('results snapshot: expanded view keeps the playback controls, clock and leg
   await expect(views.getByRole('button', { name: '16×', exact: true })).toBeVisible()
   await expect(step).toBeVisible()
   await expect(views.getByTestId('snapshot-clock')).toBeVisible()
-  await expect(views.getByRole('button', { name: 'Edit scale' })).toBeVisible()
+  await expect(views.getByTestId('voltage-legend')).toBeVisible()
   const ob = (await overlay.boundingBox())!
   const bb = (await diagram.boundingBox())!
   expect(bb.width).toBeGreaterThan(0.6 * ob.width)
