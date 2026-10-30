@@ -544,7 +544,7 @@ Requirements:
 - `ADD-4` The dialog validates inline: `Enter a name`, `Select a node`, `Unknown node`, `Required`,
   `Must differ from the from node`, `Minimum is <value>`. The add button (`Add <type>`) appends the element with
   id = 1 + the largest id of the network file (all components) and of the case's additions.
-- `ADD-5` Added elements appear in the table with a `New` badge, in the diagram (laid out automatically, marked as
+- `ADD-5` Added elements appear in the table with a `New` badge, in the diagram (placed without relayout, `ADD-11`; marked as
   changed) and in the details panel. Each counts as one change in `N change(s)`, the tab badge and `Changed only`.
 - `ADD-6` Added elements are edited in the same table cells as file elements; an edit changes the addition's own
   values (no override, no `was …` cue). Their profile targeting, effective values and results work like file
@@ -556,6 +556,25 @@ Requirements:
 - `ADD-8` `Revert all` also removes all additions and always asks first when there are any. Switching networks
   removes additions together with overrides (`NET-6`).
 - `ADD-9` Additions are validated (section 4.9, `VAL-4a`).
+- `ADD-10` **Add on the diagram.** Where the case is editable (the case editor, not run or result views), the
+  diagram has a toggle `Add on diagram`. While it is on, a tool bar on the diagram offers `Node`, `Line`, `Link`,
+  `Load`, `Generator`, `Shunt` (the addable components) with a hint line for the next click, and clicks no longer
+  select elements:
+  - `Node`: clicking empty canvas opens the add form for a node; the click position (diagram model coordinates)
+    is stored as the addition's `position`. Hint `Click empty canvas to place a node`.
+  - `Line` / `Link`: clicking a first node highlights it and a dashed line follows the pointer (hint
+    `Click the second node (from <name>) — Esc or the same node cancels`); clicking a second node opens the add
+    form with `From node` and `To node` filled. Clicking the same node again or pressing Esc cancels the
+    half-drawn line.
+  - `Load` / `Generator` / `Shunt`: clicking a node opens the add form with that node filled.
+  - `Cancel` adds nothing; the add button appends the element exactly like the table's add flow. An appliance
+    added on the diagram turns `Show appliances` on.
+  - It also works in the expanded view: the first Esc cancels a half-drawn line, a further Esc collapses the view.
+- `ADD-11` **Placement without relayout.** Adding or removing an element never re-runs the layout: existing nodes
+  keep their positions (and the zoom and pan are kept). A new node goes to its stored position; a node added from
+  the table (no position) is placed near the nodes it connects to, else right of the network; new appliances sit
+  beside their node. The network file's layout is deterministic and independent of `Show appliances` (hiding
+  appliances only hides them), so a run's snapshot view draws the same picture and the stored positions.
 
 Acceptance criteria:
 
@@ -568,6 +587,17 @@ Acceptance criteria:
   summary lists `New node 1` and the element time series offers `New load 1`.
 - Given those additions, when I press `Delete New node 1`, then the confirmation lists `New line 1` and
   `New load 1`; when I delete only `New load 1` and save, then the case keeps two additions.
+- Given a new case on Vision MV with `Add on diagram` on, when I click empty canvas, then the `Add node` form opens
+  with `New node 1`; after adding it, the node is drawn where I clicked and no other node has moved.
+- Given the `Line` tool, when I click `KNP 3` and press Esc, then nothing is half drawn and no form opens; when I
+  click `KNP 3` and then `New node 1`, then the `Add branch` form shows `From node` `KNP 3 (id …)` and `To node`
+  `New node 1 (id 129)`.
+- Given the `Load` tool, when I click `New node 1`, then the `Add appliance` form opens with Type `Load` and that
+  node; after adding, the table shows `3 changes` with `New` badges.
+- Given the expanded diagram with a half-drawn line, when I press Esc, then the line is cancelled and the view stays
+  expanded; a second Esc collapses it.
+- Given those additions saved and run, then the run succeeds, the frozen case stores the node's position, and the
+  snapshot draws `New node 1` at that position and the file's nodes where the editor drew them.
 
 ### 4.7 Time and calculation settings
 

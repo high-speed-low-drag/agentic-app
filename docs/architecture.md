@@ -71,6 +71,11 @@ JSON files). A future `lakehouse` source will implement the same interface.
   (`GET /api/networks/addable-fields`); `networks/additions.py` validates them and appends them to copies of the input
   arrays **before** the overrides, so overrides, profile targets and results treat them like file elements. The
   frontend mirrors this in `components/network/additions.ts` (`withAdditions`, id allocation, delete-with-dependents).
+  The case editor's diagram has an edit mode (`components/network/editMode.ts`, a pure click state machine) that opens
+  the same add form pre-filled from diagram clicks. Diagram placement (`components/network/placement.ts`): only the
+  network file's elements are laid out, deterministically (seeded fcose, fixed tree box, origin-anchored), so the
+  editor and a run's snapshot share one model frame; additions are placed afterwards (an added node at its stored
+  `position`, else near its neighbours), and a re-created diagram reuses the previous positions instead of re-laying out.
 - The engine runs `calculate_power_flow(update_data=batch,
   continue_on_batch_error=True)` in chunks, so it can report progress. Failed
   (non-converged) timesteps are recorded rather than aborting the run.

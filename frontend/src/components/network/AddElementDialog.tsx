@@ -203,6 +203,7 @@ function AddElementForm({
         ))}
         <p className="text-xs text-fg-muted sm:col-span-2">
           The element is added to this case only; the network file stays unchanged. Edit its values later in the table.
+          {seed?.position && component === 'node' && ' It is placed where you clicked on the diagram.'}
         </p>
         <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
       </form>

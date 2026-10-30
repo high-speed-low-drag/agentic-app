@@ -183,6 +183,7 @@ export function NetworkSnapshotView({ runId, summary }: ResultViewProps) {
             topology={fileTopology}
             changed={changed}
             statusTopology={topology}
+            additions={additions}
             overlay={overlay}
             overlayKey={t}
             selected={selected}

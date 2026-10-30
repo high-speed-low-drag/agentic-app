@@ -4,7 +4,7 @@ import fcose from 'cytoscape-fcose'
 import { Maximize, Minus, Plus, Scan } from 'lucide-react'
 import type { ReactNode, Ref } from 'react'
 import { useEffect, useImperativeHandle, useMemo, useRef } from 'react'
-import type { NetworkTopology } from '../../api/schema'
+import type { NetworkAddition, NetworkTopology, Position } from '../../api/schema'
 import { cn } from '../../lib/utils'
 import type { ChartTheme } from '../charts/theme'
 import { useChartTheme } from '../charts/theme'
@@ -12,6 +12,8 @@ import type { ElementRef } from './graph'
 import { branchTypeColor, buildElements, cyId, parseCyId, rootNodeIds, voltageColor, voltageLevels } from './graph'
 import { branchInService, energisedNodes, ISLANDED_TIP, OOS_LABEL, OOS_TIP, OOS_WIDTH } from './energised'
 import { useDiagramExpand } from './expandContext'
+import type { PositionCache, Pt } from './placement'
+import { additionCyIds, canReuse, placeMissing, storedPositions, withSeededRandom } from './placement'
 import { focusZoom, prefersReducedMotion } from './selection'
 import type { ShuntKind, SymbolPalette } from './symbols'
 import { quantisedAngle, symbolScale, symbolUri } from './symbols'
@@ -73,8 +75,32 @@ export interface NetworkDiagramProps {
    * place without re-layout; `topology` alone drives the layout.
    */
   statusTopology?: NetworkTopology
+  /**
+   * Elements added by the case (already part of `topology`). They are not laid out with the network
+   * file's elements but placed afterwards (an added node at its stored `position`, else near its
+   * neighbours), so adding one keeps every other node where it is.
+   */
+  additions?: NetworkAddition[]
+  /**
+   * Edit mode: a click reports the bus node under the pointer (null on empty canvas) and the click's
+   * position in model coordinates, instead of selecting.
+   */
+  onEditClick?: (click: { node: number | null; position: Position }) => void
+  /** Bus node a half-drawn branch starts from: highlighted, with a dashed line following the pointer. */
+  pendingNode?: number | null
+  /** Overlay at the top-left (the edit toolbar). */
+  toolbar?: ReactNode
   ref?: Ref<NetworkDiagramHandle>
 }
+
+/**
+ * Appliances take part in the layout when the network file has at most this many (the default of
+ * "Show appliances"); hiding them then only hides them, so the layout (and the position a diagram
+ * click stores) does not depend on that toggle, and the editor and a run's snapshot match.
+ */
+export const LAYOUT_APPLIANCES_MAX = 400
+/** Model-space box of the tree layout: fixed, so the layout does not depend on the container size. */
+const TREE_BOX = { x1: 0, y1: 0, w: 1000, h: 600 }
 
 /**
  * Bus-node (`kind = "node"`) geometry, in model px (= rendered px at zoom 1). Every bus-node rule
@@ -315,6 +341,15 @@ function stylesheet(t: ChartTheme, resultNodes = false): StylesheetJson {
       style: { 'border-width': NODE_SELECTED_BORDER, 'overlay-padding': NODE_SELECTED_OVERLAY },
     },
     { selector: 'node.sym:selected', style: { 'border-width': 2, 'border-opacity': 1 } },
+    // edit mode: the first node of a half-drawn branch, and the dashed line following the pointer
+    {
+      selector: 'node.pending',
+      style: { 'border-color': t.accent, 'border-width': 3, 'border-opacity': 1, width: NODE_CHANGED_SIZE + 2, height: NODE_CHANGED_SIZE + 2 },
+    },
+    { selector: '.ghost', style: { events: 'no' } as never },
+    { selector: 'node.ghost', style: { width: 1, height: 1, opacity: 0, label: '' } },
+    { selector: 'edge.ghost', style: { width: 1.5, 'line-color': t.accent, 'line-style': 'dashed', 'line-dash-pattern': [5, 4], opacity: 1 } },
+    { selector: '.hidden', style: { display: 'none' } },
   ]
 }
 
@@ -331,6 +366,7 @@ function layoutOptions(kind: DiagramLayout, topo: NetworkTopology, nElements: nu
       fit: true,
       padding: 24,
       circle: false,
+      boundingBox: TREE_BOX,
     } as LayoutOptions
   }
   return {
@@ -366,6 +402,10 @@ export function NetworkDiagram({
   corner,
   changed,
   statusTopology,
+  additions,
+  onEditClick,
+  pendingNode = null,
+  toolbar,
   ref: handleRef,
 }: NetworkDiagramProps) {
   const theme = useChartTheme()
@@ -386,10 +426,25 @@ export function NetworkDiagram({
   useEffect(() => {
     onSelectRef.current = onSelect
   }, [onSelect])
+  const onEditRef = useRef(onEditClick)
+  useEffect(() => {
+    onEditRef.current = onEditClick
+  }, [onEditClick])
+  /** Latest additions, read when an instance is created (a structural change re-creates it). */
+  const additionsRef = useRef(additions)
+  useEffect(() => {
+    additionsRef.current = additions
+  }, [additions])
+  /** Positions and viewport of the previous instance, reused so a re-created diagram does not re-run the layout. */
+  const cacheRef = useRef<PositionCache | null>(null)
 
+  /** appliances are laid out (and only hidden when not shown) unless the network file has very many */
+  const fileAppliances = topology.appliances.length - (additions ?? []).filter((a) => a.component === 'sym_load' || a.component === 'sym_gen' || a.component === 'shunt').length
+  const layoutAppliances = fileAppliances <= LAYOUT_APPLIANCES_MAX
+  const includeAppliances = showAppliances || layoutAppliances
   const elements = useMemo(
-    () => buildElements(topology, { showAppliances, showSources }),
-    [topology, showAppliances, showSources],
+    () => buildElements(topology, { showAppliances: includeAppliances, showSources }),
+    [topology, includeAppliances, showSources],
   )
   const levels = useMemo(() => voltageLevels(topology), [topology])
   const branchTypes = useMemo(() => new Map(topology.branches.map((b) => [b.id, b.type])), [topology])
@@ -420,6 +475,14 @@ export function NetworkDiagram({
     if (import.meta.env.DEV) window.__gridsimCy = cy
     cy.on('tap', (evt) => {
       const target: SingularElementArgument | null = evt.target === cy ? null : evt.target
+      const edit = onEditRef.current
+      if (edit) {
+        // edit mode: the bus node within the hit radius (or under the pointer), else empty canvas
+        if (!evt.position) return
+        const hit = busNodeNear(cy, evt.renderedPosition) ?? (target?.isNode() && target.data('kind') === 'node' ? target : null)
+        edit({ node: hit ? Number(hit.data('eid')) : null, position: { x: evt.position.x, y: evt.position.y } })
+        return
+      }
       const own = target ? selectionFor(target) : null
       // small bus dots get a ~14 px target: a tap within NODE_HIT_RADIUS of one selects it, unless the tap is on
       // a selectable symbol or appliance and nearer that element's centre (a programmatic tap has no position)
@@ -475,19 +538,77 @@ export function NetworkDiagram({
     const outer = outerRef.current
     const setReady = (ready: boolean) => outer?.setAttribute('data-layout-ready', ready ? '1' : '0')
     setReady(false)
-    let stopped = false
-    let afterRun = false
-    const lay = cy.elements().not('.xfmr-symbol').layout(layoutOptions(layout, topology, elements.length))
-    lay.on('layoutstop', () => {
-      stopped = true
+    // Only the network file's elements are laid out (deterministically, so the editor and a run's snapshot
+    // match); the case's additions, and appliances when there are too many to lay out, are placed afterwards.
+    const adds = additionsRef.current
+    const added = cy.collection()
+    for (const id of additionCyIds(adds)) added.merge(cy.getElementById(id))
+    let layoutEles = cy.elements().not('.xfmr-symbol').difference(added).difference(added.connectedEdges())
+    if (!layoutAppliances) {
+      const appl = cy.nodes('.appliance')
+      layoutEles = layoutEles.difference(appl).difference(appl.connectedEdges())
+    }
+    const busIds = layoutEles.nodes('[kind = "node"]').map((n) => n.id())
+    const cache = cacheRef.current
+    const reuse = canReuse(cache, layout, busIds)
+    const placeRest = (fresh: boolean) => {
+      const known = new Map<string, Pt>()
+      layoutEles.nodes().forEach((n) => {
+        if (!reuse || cache!.positions.has(n.id())) known.set(n.id(), { ...n.position() })
+      })
+      const missing = cy.nodes().not('.xfmr-symbol').filter((n) => !known.has(n.id()))
+      if (missing.empty()) return
+      const pos = placeMissing({
+        buses: missing.filter('[kind = "node"]').map((n) => n.id()),
+        attached: missing
+          .not('[kind = "node"]')
+          .map((n) => ({ id: n.id(), anchor: (n as NodeSingular).connectedEdges('.stub').connectedNodes('[kind = "node"]').first().id() ?? '' })),
+        links: cy.edges('.branch').map((e) => [e.source().id(), e.target().id()] as [string, string]),
+        known,
+        stored: storedPositions(adds),
+      })
+      cy.batch(() => missing.forEach((n) => void (pos.has(n.id()) && n.position(pos.get(n.id())!))))
+      if (fresh) cy.fit(undefined, 24)
+    }
+    const finish = (fresh: boolean) => {
+      // a fresh layout is anchored at the origin (top-left bus node bounds), so its frame is the same whatever
+      // the layout's own offset (it depends e.g. on the viewport); stored positions are in this frame
+      if (fresh) {
+        const laid = layoutEles.nodes()
+        const ps = laid.map((n) => n.position())
+        if (ps.length) {
+          const dx = Math.min(...ps.map((q) => q.x))
+          const dy = Math.min(...ps.map((q) => q.y))
+          cy.batch(() => laid.forEach((n) => void n.position({ x: n.position('x') - dx, y: n.position('y') - dy })))
+          cy.fit(undefined, 24)
+        }
+      }
+      placeRest(fresh)
       placeSymbols()
-      if (afterRun) setReady(true) // an asynchronous layout
-    })
-    lay.run()
-    afterRun = true
-    placeSymbols()
+      setReady(true)
+    }
+    if (reuse) {
+      cy.batch(() =>
+        layoutEles.nodes().forEach((n) => {
+          const p = cache.positions.get(n.id())
+          if (p) n.position(p)
+        }),
+      )
+      cy.viewport({ zoom: cache.viewport.zoom, pan: { ...cache.viewport.pan } })
+      finish(false)
+    } else {
+      let stopped = false
+      let afterRun = false
+      const lay = layoutEles.layout(layoutOptions(layout, topology, layoutEles.length))
+      lay.on('layoutstop', () => {
+        stopped = true
+        if (afterRun) finish(true) // an asynchronous layout
+      })
+      withSeededRandom(() => lay.run())
+      afterRun = true
+      if (stopped) finish(true)
+    }
     sizeSymbols()
-    if (stopped) setReady(true)
     const ro = new ResizeObserver(() => cy.resize())
     ro.observe(el)
     const onPress = () => refreshContainerOffset(cy)
@@ -495,13 +616,52 @@ export function NetworkDiagram({
     outer?.addEventListener('pointerdown', onPress, true)
     return () => {
       outer?.removeEventListener('pointerdown', onPress, true)
+      // keep positions and viewport for the next instance (same layout choice): no re-layout on a structural change
+      const positions = new Map<string, Pt>()
+      cy.nodes().not('.xfmr-symbol, .ghost').forEach((n) => void positions.set(n.id(), { ...n.position() }))
+      cacheRef.current = { layout, positions, viewport: { zoom: cy.zoom(), pan: { ...cy.pan() } } }
       setReady(false)
       ro.disconnect()
       cy.destroy()
       cyRef.current = null
       if (import.meta.env.DEV && window.__gridsimCy === cy) delete window.__gridsimCy
     }
-  }, [elements, layout, topology])
+  }, [elements, layout, topology, layoutAppliances])
+
+  // appliances that are laid out but not shown are hidden (with their stubs)
+  useEffect(() => {
+    const cy = cyRef.current
+    if (!cy) return
+    const appl = cy.nodes('.appliance')
+    const all = appl.union(appl.connectedEdges('.stub'))
+    if (showAppliances) all.removeClass('hidden')
+    else all.addClass('hidden')
+  }, [showAppliances, elements, layout])
+
+  // edit mode: highlight the first node of a half-drawn branch and draw a dashed line to the pointer
+  useEffect(() => {
+    const cy = cyRef.current
+    if (!cy || pendingNode === null) return
+    const src = cy.getElementById(cyId('node', pendingNode))
+    if (src.empty()) return
+    const accent = paintRef.current.theme.accent
+    src.addClass('pending')
+    const ghost = cy.add([
+      { group: 'nodes', data: { id: '__ghost', kind: 'ghost', label: '', color: accent }, classes: 'ghost', position: { ...src.position() } },
+      { group: 'edges', data: { id: '__ghost_edge', source: src.id(), target: '__ghost', kind: 'ghost', color: accent, width: 1.5 }, classes: 'ghost' },
+    ])
+    const tip = cy.getElementById('__ghost')
+    const move = (evt: cytoscape.EventObject) => {
+      if (evt.position) tip.position({ x: evt.position.x, y: evt.position.y })
+    }
+    cy.on('mousemove', move)
+    return () => {
+      if (cy.destroyed()) return
+      cy.off('mousemove', move)
+      cy.remove(ghost)
+      src.removeClass('pending')
+    }
+  }, [pendingNode, elements, layout])
 
   // expanded: wheel zoom on; the container changed size, so resize and refit (the instance itself is kept)
   const sizeKey = useRef(`${expanded}/${fullscreen}`)
@@ -644,10 +804,13 @@ export function NetworkDiagram({
       data-not-energised-count={topology.nodes.length - status.energised.size}
       data-expanded={expanded ? '1' : '0'}
       data-selected={selected ? `${selected.kind}:${selected.id}` : ''}
+      data-edit={onEditClick ? '1' : '0'}
+      data-pending-node={pendingNode ?? ''}
       className={cn('relative overflow-hidden rounded-md border border-border bg-surface-2', expanded && 'min-h-64', className)}
       style={{ height: expanded ? '100%' : height }}
     >
-      <div ref={ref} className="absolute inset-0 h-full w-full" />
+      <div ref={ref} className={cn('absolute inset-0 h-full w-full', onEditClick && 'cursor-crosshair')} />
+      {toolbar && <div className="absolute top-2 left-2 max-w-[calc(100%-4rem)]">{toolbar}</div>}
       <div className="absolute top-2 right-2 flex flex-col overflow-hidden rounded-md border border-border bg-surface shadow-sm">
         <button className="p-1.5 text-fg-2 hover:bg-surface-3" onClick={() => zoom(1.25)} aria-label="Zoom in" title="Zoom in">
           <Plus size={14} />
