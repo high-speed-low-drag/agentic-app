@@ -1,0 +1,270 @@
+{
+  "id": "demo-mv-winter-peak",
+  "name": "Vision MV – winter evening peak",
+  "description": "A cold January week on the Vision MV network: household demand +10 % for heat pumps plus two cohorts of evening EV home charging. Look at the Violations tab and the loading views between 17 and 21 h: LS transformers and feeder cable R1 overload every evening, and KNP 1 (LS), behind the high-impedance transformer 78, drops below 0.95 pu. The reactive-power edits on the LV loads are deliberate: they give the loads power factor 0.97 (the network file has q = 0).",
+  "network": {
+    "source": "sample",
+    "key": "vision_mv"
+  },
+  "time": {
+    "start": "2027-01-11T00:00:00",
+    "end": "2027-01-18T00:00:00",
+    "resolution_minutes": 15
+  },
+  "profile_assignments": [
+    {
+      "id": "a1",
+      "label": "Households +10 % (heat pumps)",
+      "generator": "residential_load",
+      "params": {
+        "seed": 1,
+        "amplitude_jitter": 0.05
+      },
+      "target": {
+        "component": "sym_load",
+        "ids": [
+          105,
+          106,
+          108,
+          109,
+          110,
+          112,
+          113,
+          117,
+          118,
+          107,
+          114,
+          116,
+          119,
+          120,
+          121,
+          122,
+          123,
+          111,
+          115,
+          124
+        ]
+      },
+      "factor": 1.1
+    },
+    {
+      "id": "a2",
+      "label": "MV customer",
+      "generator": "commercial_load",
+      "params": {
+        "seed": 3
+      },
+      "target": {
+        "component": "sym_load",
+        "ids": [
+          104
+        ]
+      }
+    },
+    {
+      "id": "a3",
+      "label": "PV parks",
+      "generator": "pv",
+      "params": {
+        "seed": 2,
+        "cloudiness": 0.6
+      },
+      "target": {
+        "component": "sym_gen",
+        "ids": [
+          128,
+          101,
+          102
+        ]
+      }
+    },
+    {
+      "id": "a4",
+      "label": "Wind",
+      "generator": "constant",
+      "params": {
+        "value": 0.35
+      },
+      "target": {
+        "component": "sym_gen",
+        "ids": [
+          103
+        ]
+      }
+    },
+    {
+      "id": "e1",
+      "label": "EV charging, cohort A (60 kW per area)",
+      "generator": "ev_charging",
+      "params": {
+        "seed": 4,
+        "share": 0.8,
+        "arrival_mean_hour": 18.0
+      },
+      "target": {
+        "component": "sym_load",
+        "ids": [
+          105,
+          106,
+          108,
+          109,
+          110,
+          112,
+          113,
+          117,
+          118
+        ]
+      },
+      "mode": "add",
+      "magnitude_w": 60000.0
+    },
+    {
+      "id": "e2",
+      "label": "EV charging, cohort B (60 kW per area)",
+      "generator": "ev_charging",
+      "params": {
+        "seed": 5,
+        "share": 0.8,
+        "arrival_mean_hour": 18.0
+      },
+      "target": {
+        "component": "sym_load",
+        "ids": [
+          105,
+          106,
+          108,
+          109,
+          110,
+          112,
+          113,
+          117,
+          118
+        ]
+      },
+      "mode": "add",
+      "magnitude_w": 60000.0
+    }
+  ],
+  "network_overrides": [
+    {
+      "component": "sym_load",
+      "id": 105,
+      "field": "q_specified",
+      "value": 200500.0
+    },
+    {
+      "component": "sym_load",
+      "id": 106,
+      "field": "q_specified",
+      "value": 200500.0
+    },
+    {
+      "component": "sym_load",
+      "id": 108,
+      "field": "q_specified",
+      "value": 238100.0
+    },
+    {
+      "component": "sym_load",
+      "id": 109,
+      "field": "q_specified",
+      "value": 238100.0
+    },
+    {
+      "component": "sym_load",
+      "id": 110,
+      "field": "q_specified",
+      "value": 238100.0
+    },
+    {
+      "component": "sym_load",
+      "id": 112,
+      "field": "q_specified",
+      "value": 238100.0
+    },
+    {
+      "component": "sym_load",
+      "id": 113,
+      "field": "q_specified",
+      "value": 238100.0
+    },
+    {
+      "component": "sym_load",
+      "id": 117,
+      "field": "q_specified",
+      "value": 238100.0
+    },
+    {
+      "component": "sym_load",
+      "id": 118,
+      "field": "q_specified",
+      "value": 200500.0
+    },
+    {
+      "component": "sym_load",
+      "id": 107,
+      "field": "q_specified",
+      "value": 25100.0
+    },
+    {
+      "component": "sym_load",
+      "id": 114,
+      "field": "q_specified",
+      "value": 25100.0
+    },
+    {
+      "component": "sym_load",
+      "id": 116,
+      "field": "q_specified",
+      "value": 25100.0
+    },
+    {
+      "component": "sym_load",
+      "id": 119,
+      "field": "q_specified",
+      "value": 25100.0
+    },
+    {
+      "component": "sym_load",
+      "id": 120,
+      "field": "q_specified",
+      "value": 25100.0
+    },
+    {
+      "component": "sym_load",
+      "id": 121,
+      "field": "q_specified",
+      "value": 25100.0
+    },
+    {
+      "component": "sym_load",
+      "id": 122,
+      "field": "q_specified",
+      "value": 25100.0
+    },
+    {
+      "component": "sym_load",
+      "id": 123,
+      "field": "q_specified",
+      "value": 25100.0
+    },
+    {
+      "component": "sym_load",
+      "id": 111,
+      "field": "q_specified",
+      "value": 375900.0
+    },
+    {
+      "component": "sym_load",
+      "id": 115,
+      "field": "q_specified",
+      "value": 614000.0
+    },
+    {
+      "component": "sym_load",
+      "id": 124,
+      "field": "q_specified",
+      "value": 614000.0
+    }
+  ]
+}

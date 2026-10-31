@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"$CLAUDE_PROJECT_DIR/.agent/LEDGER.md\"; if [ -f \"$f\" ] && grep -qE '\\| (in_progress|todo) \\|' \"$f\"; then echo 'Unfinished agentic build tasks found (run /resume-build to continue):'; cat \"$f\"; fi"
+          }
+        ]
+      }
+    ]
+  }
+}
